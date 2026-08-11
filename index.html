@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Duplex World - can voice agents help you get through the day?</title>
+<meta name="description" content="Duplex World evaluates speech-to-speech voice agents across six worlds of an ordinary day and eleven conversation types, over 3,825 scored conversations and 387 hours of speech.">
+<!-- Inline so the browser never fires its automatic /favicon.ico request, which is a
+     404 on a static server and the only broken asset the page would otherwise have. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23120b19'/%3E%3Ccircle cx='16' cy='14' r='9' fill='none' stroke='%23e0246c' stroke-width='2.2'/%3E%3Crect x='6' y='23' width='20' height='5' rx='2.5' fill='%237b3a97'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="world.css">
+<link rel="stylesheet" href="map.css">
+<link rel="stylesheet" href="alt-split.css">
+</head>
+<body>
+
+<header class="topbar" data-nav-host>
+  <span class="wordmark"><img class="wordmark-logo" src="img/hero.webp" alt="">Duplex&nbsp;World <span class="sub">benchmark</span></span>
+</header>
+
+<main id="world"></main>
+
+<!-- The walk renderer. Loaded before the flight so the map tiles can mount the moment their
+     payloads land; if it is missing the flight still runs and the tiles stay as placeholders
+     rather than throwing. -->
+<script src="walkmap.js"></script>
+<script>
+// The vendors' own marks, named here rather than inside flight.js so the single-file
+// export can rewrite them into its art table like every other image on the page.
+window.__DW_ICONS = {
+  openai: 'img/icons/openai.webp', gemini: 'img/icons/gemini.webp',
+  grok: 'img/icons/grok.webp', nova: 'img/icons/nova.webp',
+};
+</script>
+<script src="flight.js"></script>
+<script>
+// A project page for the paper, in the shape a project page takes: the title and the
+// abstract alone on screen, then the figures, then the tables.
+//
+// Thirteen stops. The left half is not the film throughout - it is a STAGE with a role per
+// stop, because a page about a paper opens on the paper, and a per-world results stop wants
+// that world's name rather than another frame of a flight that has already landed.
+//
+//   0      the mark, small, above the title      title and abstract
+//   1      the mark grows and takes the left     pooled Pass@1, hoverable
+//   2      the film: the whole dome              welcome, and what is in the corpus
+//   3      the film: down into Pathfinding       six live walks, revealed one job at a time
+//   4      the film: pulling out of Pathfinding  Pathfinding per system, and its Table 3 block
+//   5-9    the film: each world's own dive       that world's Table 3 block, with a name plate
+//   10     the film: pulling back out            the twelve-metric suite, revealed in three
+//   11     the mark                              the pooled block, and where to go next
+//
+// THE FLIGHT NEVER STOPS. Every stop from 2 to 10 sits on a real moment in the chain, and
+// the chain is one dive per world, eight seconds each, sixteen apart. An earlier cut of this
+// page filmed only the first four stops and put a static name card on the other six, which
+// threw away half the clip and left the left-hand side frozen through the entire middle of
+// the page. The world stops are therefore ordered as the CAMERA flies them, not as Table 3
+// prints its blocks - the print order carries no meaning in the paper, and a continuous
+// flight does.
+//
+// PACING. Band widths are chosen so film time per viewport-height is constant WITHIN each
+// phase of the journey, measured rather than eyeballed:
+//
+// The two are solved TOGETHER rather than chosen separately: a stop's time is set by where
+// the band puts it, subject to still landing inside its own clip. Eight of the nine legs
+// run at 3.20 film-seconds per viewport-height; the last, into the outro, runs at 2.83
+// because the film ends and there is nowhere further to go. Spread 1.13x, against 1.7x when
+// the bands were picked by eye and infinity when the film was frozen for seven stops.
+//
+// The worlds are 16 film-seconds apart and the approach legs are 8, so a world band is
+// twice an approach band. That is the whole rule.
+//
+// EVERY NUMBER BELOW COMES FROM duplexworld_submission.pdf AND NOWHERE ELSE. The seven
+// T3_* blocks are Table 3, transcribed by script from the extracted text rather than by
+// hand, in the paper's own block order (Banking, Logistics, Healthcare, Insurance, Travel,
+// Pathfinding, then all six). Rows are reordered by that world's own Pass@1, which is the
+// order the prose reads them in; the table's print order is the vendor order of Table 2 and
+// carries no meaning. Column order is untouched. The three pillars and the metric glossary
+// are Table 11; the world regimes are Table 7; the six walks are the instances drawn in
+// Figures 3, 4 and 5; the corpus totals are Section 1 and Appendix P.
+
+// --- Table 3 -------------------------------------------------------------------------
+const T3_BANKING = [
+  { system: 'Voice Think Fast', vals: [['0.726','.074'], ['0.326','.081'], ['0.511','.169'], ['0.144','.104'], ['0.686','.033'], ['1.644','.119'], ['0.613','.057'], ['1.800','.126'], ['3.143','.015'], ['3.657','.016'], ['3.117','.020']] },
+  { system: 'Gemini-3.1-Flash-Live', vals: [['0.585','.081'], ['0.207','.067'], ['0.363','.161'], ['0.085','.094'], ['0.449','.033'], ['1.437','.096'], ['0.759','.053'], ['1.585','.104'], ['3.402','.012'], ['3.398','.018'], ['3.522','.023']] },
+  { system: 'GPT-Realtime-2.1', vals: [['0.689','.078'], ['0.200','.070'], ['0.352','.167'], ['0.063','.072'], ['0.763','.028'], ['1.556','.100'], ['0.340','.051'], ['2.037','.122'], ['3.360','.015'], ['4.081','.049'], ['3.589','.033']] },
+  { system: 'GPT-Realtime-2.1-mini', vals: [['0.385','.081'], ['0.126','.056'], ['0.233','.141'], ['0.044','.061'], ['0.535','.051'], ['1.200','.078'], ['0.470','.046'], ['1.548','.111'], ['3.198','.050'], ['3.530','.178'], ['3.287','.115']] },
+  { system: 'Nova 2 Sonic', vals: [['0.415','.081'], ['0.037','.033'], ['0.037','.056'], ['0.037','.056'], ['0.760','.043'], ['1.022','.030'], ['0.976','.014'], ['1.911','.133'], ['3.152','.043'], ['2.565','.054'], ['2.550','.047']] },
+];
+const T3_LOGISTICS = [
+  { system: 'GPT-Realtime-2.1', vals: [['0.637','.081'], ['0.533','.081'], ['0.704','.150'], ['0.381','.170'], ['0.741','.036'], ['1.867','.115'], ['0.369','.057'], ['2.252','.126'], ['3.361','.007'], ['4.112','.007'], ['3.601','.014']] },
+  { system: 'Voice Think Fast', vals: [['0.652','.081'], ['0.519','.081'], ['0.685','.159'], ['0.341','.154'], ['0.680','.030'], ['2.015','.126'], ['0.627','.062'], ['2.148','.126'], ['3.132','.013'], ['3.692','.017'], ['3.109','.020']] },
+  { system: 'Gemini-3.1-Flash-Live', vals: [['0.630','.081'], ['0.489','.085'], ['0.715','.150'], ['0.270','.150'], ['0.443','.037'], ['1.874','.119'], ['0.727','.062'], ['2.015','.133'], ['3.373','.014'], ['3.423','.017'], ['3.484','.023']] },
+  { system: 'GPT-Realtime-2.1-mini', vals: [['0.333','.081'], ['0.296','.078'], ['0.474','.159'], ['0.152','.120'], ['0.702','.049'], ['1.681','.122'], ['0.350','.058'], ['1.763','.137'], ['3.387','.007'], ['4.163','.008'], ['3.727','.014']] },
+  { system: 'Nova 2 Sonic', vals: [['0.052','.037'], ['0.000','.000'], ['0.000','.000'], ['0.000','.000'], ['0.631','.048'], ['1.030','.026'], ['0.968','.018'], ['1.911','.141'], ['3.145','.037'], ['2.587','.038'], ['2.629','.045']] },
+];
+const T3_HEALTHCARE = [
+  { system: 'Voice Think Fast', vals: [['0.793','.067'], ['0.519','.085'], ['0.715','.154'], ['0.304','.150'], ['0.612','.027'], ['1.948','.119'], ['0.704','.054'], ['1.859','.133'], ['3.128','.015'], ['3.647','.050'], ['3.040','.027']] },
+  { system: 'GPT-Realtime-2.1', vals: [['0.615','.081'], ['0.511','.085'], ['0.789','.119'], ['0.244','.133'], ['0.649','.034'], ['1.585','.122'], ['0.391','.053'], ['2.015','.133'], ['3.353','.007'], ['4.082','.009'], ['3.581','.015']] },
+  { system: 'Gemini-3.1-Flash-Live', vals: [['0.652','.078'], ['0.378','.081'], ['0.674','.148'], ['0.119','.102'], ['0.336','.031'], ['1.378','.085'], ['0.742','.053'], ['1.667','.115'], ['3.370','.023'], ['3.372','.045'], ['3.459','.038']] },
+  { system: 'GPT-Realtime-2.1-mini', vals: [['0.407','.085'], ['0.074','.044'], ['0.137','.111'], ['0.037','.056'], ['0.494','.050'], ['1.215','.085'], ['0.498','.059'], ['1.652','.126'], ['3.349','.013'], ['4.067','.048'], ['3.642','.035']] },
+  { system: 'Nova 2 Sonic', vals: [['0.385','.081'], ['0.007','.011'], ['0.022','.033'], ['0.000','.000'], ['0.611','.055'], ['1.007','.011'], ['0.973','.020'], ['1.437','.100'], ['3.202','.016'], ['2.634','.031'], ['2.643','.035']] },
+];
+const T3_INSURANCE = [
+  { system: 'Voice Think Fast', vals: [['0.807','.067'], ['0.556','.081'], ['0.811','.119'], ['0.278','.130'], ['0.553','.019'], ['1.689','.126'], ['0.680','.057'], ['1.778','.126'], ['3.090','.014'], ['3.665','.014'], ['3.012','.017']] },
+  { system: 'GPT-Realtime-2.1', vals: [['0.556','.081'], ['0.481','.081'], ['0.711','.159'], ['0.211','.120'], ['0.551','.035'], ['1.296','.078'], ['0.430','.051'], ['1.881','.126'], ['3.336','.006'], ['4.087','.006'], ['3.569','.012']] },
+  { system: 'Gemini-3.1-Flash-Live', vals: [['0.630','.081'], ['0.363','.085'], ['0.656','.152'], ['0.089','.076'], ['0.249','.023'], ['1.422','.096'], ['0.707','.054'], ['1.474','.107'], ['3.398','.010'], ['3.425','.016'], ['3.472','.021']] },
+  { system: 'GPT-Realtime-2.1-mini', vals: [['0.407','.081'], ['0.244','.074'], ['0.530','.141'], ['0.030','.030'], ['0.465','.047'], ['1.185','.078'], ['0.476','.050'], ['1.519','.115'], ['3.363','.006'], ['4.128','.007'], ['3.658','.014']] },
+  { system: 'Nova 2 Sonic', vals: [['0.385','.081'], ['0.015','.019'], ['0.033','.050'], ['0.000','.000'], ['0.637','.052'], ['1.007','.011'], ['0.960','.022'], ['1.556','.115'], ['3.191','.017'], ['2.655','.029'], ['2.671','.040']] },
+];
+const T3_TRAVEL = [
+  { system: 'GPT-Realtime-2.1', vals: [['0.815','.067'], ['0.674','.081'], ['0.930','.054'], ['0.374','.143'], ['0.656','.022'], ['1.667','.111'], ['0.404','.056'], ['2.319','.122'], ['3.350','.006'], ['4.085','.007'], ['3.601','.013']] },
+  { system: 'Voice Think Fast', vals: [['0.830','.063'], ['0.489','.081'], ['0.652','.165'], ['0.307','.152'], ['0.597','.017'], ['2.207','.111'], ['0.647','.056'], ['2.207','.122'], ['3.136','.023'], ['3.709','.015'], ['3.086','.022']] },
+  { system: 'Gemini-3.1-Flash-Live', vals: [['0.881','.056'], ['0.459','.081'], ['0.704','.152'], ['0.204','.119'], ['0.314','.025'], ['1.778','.111'], ['0.735','.058'], ['2.067','.111'], ['3.366','.025'], ['3.372','.017'], ['3.472','.030']] },
+  { system: 'GPT-Realtime-2.1-mini', vals: [['0.585','.081'], ['0.296','.078'], ['0.541','.157'], ['0.074','.052'], ['0.541','.043'], ['1.407','.096'], ['0.488','.056'], ['1.970','.122'], ['3.372','.006'], ['4.134','.007'], ['3.685','.012']] },
+  { system: 'Nova 2 Sonic', vals: [['0.341','.081'], ['0.007','.011'], ['0.022','.033'], ['0.000','.000'], ['0.695','.054'], ['1.022','.030'], ['0.995','.007'], ['1.748','.119'], ['3.175','.027'], ['2.444','.038'], ['2.385','.039']] },
+];
+const T3_PATHFINDING = [
+  { system: 'Voice Think Fast', vals: [['0.867','.100'], ['0.533','.133'], ['0.789','.200'], ['0.222','.133'], ['0.682','.065'], ['1.378','.133'], ['0.507','.068'], ['1.489','.156'], ['3.13','.013'], ['3.75','.016'], ['3.20','.016']] },
+  { system: 'Gemini-3.1-Flash-Live', vals: [['0.978','.033'], ['0.489','.133'], ['0.722','.261'], ['0.222','.200'], ['0.538','.029'], ['1.178','.111'], ['0.782','.067'], ['1.511','.167'], ['3.36','.021'], ['3.42','.022'], ['3.45','.031']] },
+  { system: 'GPT-Realtime-2.1', vals: [['0.400','.144'], ['0.200','.111'], ['0.467','.283'], ['0.000','.000'], ['0.561','.084'], ['1.289','.156'], ['0.551','.078'], ['1.644','.189'], ['3.34','.016'], ['4.12','.026'], ['3.66','.045']] },
+  { system: 'GPT-Realtime-2.1-mini', vals: [['0.311','.133'], ['0.089','.078'], ['0.233','.200'], ['0.000','.000'], ['0.387','.102'], ['1.156','.122'], ['0.526','.068'], ['1.333','.189'], ['3.33','.020'], ['4.11','.028'], ['3.67','.041']] },
+  { system: 'Nova 2 Sonic', vals: [['0.000','.000'], ['0.000','.000'], ['0.000','.000'], ['0.000','.000'], ['0.062','.058'], ['1.022','.033'], ['0.991','.007'], ['1.244','.167'], ['3.16','.061'], ['2.45','.052'], ['2.49','.031']] },
+];
+const T3_POOLED = [
+  { system: 'Voice Think Fast', vals: [['0.779','.031'], ['0.490','.039'], ['0.694','.068'], ['0.266','.057'], ['0.635','.015'], ['1.814','.051'], ['0.630','.024'], ['1.880','.052'], ['3.127','.007'], ['3.687','.010'], ['3.093','.009']] },
+  { system: 'GPT-Realtime-2.1', vals: [['0.619','.037'], ['0.433','.035'], ['0.659','.068'], ['0.212','.048'], ['0.653','.018'], ['1.543','.048'], ['0.414','.024'], ['2.025','.057'], ['3.350','.004'], ['4.095','.010'], ['3.600','.010']] },
+  { system: 'Gemini-3.1-Flash-Live', vals: [['0.726','.029'], ['0.398','.039'], ['0.639','.073'], ['0.165','.054'], ['0.388','.012'], ['1.511','.043'], ['0.742','.024'], ['1.720','.051'], ['3.378','.008'], ['3.402','.010'], ['3.477','.012']] },
+  { system: 'GPT-Realtime-2.1-mini', vals: [['0.405','.038'], ['0.188','.028'], ['0.358','.065'], ['0.056','.028'], ['0.521','.025'], ['1.307','.041'], ['0.468','.023'], ['1.631','.054'], ['3.334','.009'], ['4.022','.033'], ['3.611','.022']] },
+  { system: 'Nova 2 Sonic', vals: [['0.263','.028'], ['0.011','.007'], ['0.019','.019'], ['0.006','.009'], ['0.566','.021'], ['1.019','.012'], ['0.977','.006'], ['1.635','.054'], ['3.172','.015'], ['2.556','.017'], ['2.562','.017']] },
+];
+
+
+// --- Table 8: the eleven conversation types, and Table 18 / Table 14: Pass@1 by type ----
+// Types 1-9 are shared by the five enterprise worlds; the last two arise only in
+// Pathfinding. The one-line description of each is Table 8's own, trimmed to a sentence.
+// The chat is a two-line sketch of the SHAPE the type fixes, not a transcript.
+const TYPES9 = [
+  { name: 'Single intent', accent: 'var(--mag)',
+    line: 'One request, one resolution path. The control condition.',
+    chat: [['u', 'I need to move my flight to the Thursday.'],
+           ['a', 'Found the booking. Thursday 14:05, same fare class. Shall I move it?']] },
+  { name: 'Multi intent', accent: 'var(--mag)',
+    line: 'Several requests, resolvable in more than one order, with at least one dependency.',
+    chat: [['u', 'Add my new address, and send the replacement card there.'],
+           ['a', 'Address first, then the card, or it ships to the old one.']] },
+  { name: 'Policy refusal', accent: 'var(--vio)',
+    line: 'A well-formed request that must be refused. Correctness is a property of what is withheld.',
+    chat: [['u', 'Just tell me what the adjuster decided.'],
+           ['a', 'I am not able to share or influence that decision. I can log your account of the loss.']] },
+  { name: 'Record disambiguation', accent: 'var(--vio)',
+    line: 'More than one record matches what the caller said; acting before disambiguating is the failure.',
+    chat: [['u', 'The claim for the Tuesday visit.'],
+           ['a', 'There are two Tuesday visits on this policy. Which provider was it?']] },
+  { name: 'Identity verification', accent: 'var(--teal)',
+    line: 'Authority must be established first, and a failed check must not leak that the record exists.',
+    chat: [['u', 'Is there an account under that number?'],
+           ['a', 'I am not able to confirm anything before verification. Could I take your date of birth?']] },
+  { name: 'Guided procedure', accent: 'var(--teal)',
+    line: 'The effectors move to the user: the agent instructs, waits, and must trust an unverifiable report.',
+    chat: [['a', 'Hold the button until the light turns amber, then tell me what you see.'],
+           ['u', 'It is amber now.']] },
+  { name: 'Mid-call correction', accent: 'var(--amb)',
+    line: 'The caller revises a premise after the agent has begun acting on it.',
+    chat: [['u', 'Sorry, not the Milan one. The Rome one.'],
+           ['a', 'Stopping the Milan change. Reopening the Rome booking now.']] },
+  { name: 'Suspension', accent: 'var(--amb)',
+    line: 'The call is interrupted and resumed across a gap the agent must hold state over.',
+    chat: [['u', 'Hold on, someone is at the door.'],
+           ['a', 'Of course. I still have the shipment open and nothing has been sent.']] },
+  { name: 'Narrative intake', accent: 'var(--grey)',
+    line: 'A long unstructured account from which the agent must extract, confirm and file the facts.',
+    chat: [['u', 'It was raining, I was on the ring road, and the car ahead just stopped.'],
+           ['a', 'So: rear-end, ring road, wet road. Any injuries to record?']] },
+];
+const TYPES3 = [
+  { name: 'Single intent', accent: 'var(--mag)',
+    line: 'A base route of five blocks and two turns. The control condition.' },
+  { name: 'Rerouting', accent: 'var(--vio)',
+    line: 'Closures missing from the map seal every visible route, so a belief formed from a tool result expires silently.' },
+  { name: 'All-day assistance', accent: 'var(--teal)',
+    line: 'A second goal emerges on arrival at the first; the test is staying useful over a long horizon.' },
+];
+// Table 18, Pass@1 row, pooled over the five enterprise worlds, by conversation type.
+const SYS5 = ['Voice Think Fast', 'GPT-Realtime-2.1', 'Gemini-3.1-Flash-Live',
+              'GPT-Realtime-2.1-mini', 'Nova 2 Sonic'];
+const BY_TYPE_9 = [
+  ['Single intent',         [0.680, 0.640, 0.493, 0.320, 0.000]],
+  ['Multi intent',          [0.493, 0.533, 0.320, 0.107, 0.000]],
+  ['Policy refusal',        [0.453, 0.573, 0.360, 0.160, 0.000]],
+  ['Record disambiguation', [0.360, 0.440, 0.347, 0.267, 0.000]],
+  ['Identity verification', [0.413, 0.507, 0.307, 0.227, 0.120]],
+  ['Guided procedure',      [0.467, 0.413, 0.440, 0.187, 0.000]],
+  ['Mid-call correction',   [0.667, 0.440, 0.467, 0.200, 0.000]],
+  ['Suspension',            [0.440, 0.333, 0.320, 0.107, 0.000]],
+  ['Narrative intake',      [0.360, 0.440, 0.360, 0.293, 0.000]],
+];
+// Table 14, realistic channel. Confirmed as the realistic columns by checking that each
+// system's three values average to its Table 3 Pathfinding cell.
+const BY_TYPE_3 = [
+  ['Single intent',      [0.80, 0.33, 0.67, 0.13, 0.00]],
+  ['Rerouting',          [0.13, 0.00, 0.27, 0.00, 0.00]],
+  ['All-day assistance', [0.67, 0.27, 0.53, 0.13, 0.00]],
+];
+
+// The three pillars of Table 11, not the print order of the columns: FAI is a naturalness
+// metric and belongs with the MOS predictors, though Table 3 prints it beside SEL.
+const PILLARS = [
+  { name: 'Agentic capability', cols: ['GS', 'Pass@1', 'Pass@3', 'Pass³'] },
+  { name: 'Conversational dynamics', cols: ['TT', 'CP', 'SEL'] },
+  { name: 'Naturalness', cols: ['FAI', 'DNSMOS', 'UTMOS', 'NISQA'] },
+];
+// Every metric in this table is higher-is-better (Table 11). Stated rather than assumed:
+// the suite also contains the under-effort share, which is not, and a silent max there
+// would bold the worst system in the column.
+const HIGH = PILLARS.flatMap((g) => g.cols).map(() => 'high');
+
+// One world stop: the camera is inside that world, a name plate over the film says which
+// one, and its whole Table 3 block is on the right. Deliberately one line of prose - six
+// paragraphs about six worlds is the writeup this page is explicitly not doing.
+//
+// All five take the same band, because the film gives each world exactly the same sixteen
+// seconds. Equal bands over equal film is what makes the middle of the page run at one
+// speed instead of lurching between stops.
+function world(id, name, line, rows, _caption, cam) {
+  return {
+    id, label: name, stage: 'film', still: null,
+    cam: cam || { x: 0.5, y: 0.47, z: 1.0 }, scroll: 5.0, linger: 0.42,
+    accent: 'var(--viod)',
+    mark: { name, line },
+    // The world's Pass@1, READ OUT OF THE TABLE below it rather than typed again. Column 1
+    // is Pass@1 in the pillar order, and the rows are already sorted by it. Deriving it is
+    // the point: a chart and a table that disagree is the classic way a results page goes
+    // wrong, and here they cannot, because there is only one set of numbers.
+    bars: {
+      label: 'Pass@1, ' + name,
+      metric: 'Pass@1',
+      max: 0.7,
+      rows: rows.map((r) => ({ system: r.system,
+                               v: parseFloat(r.vals[1][0]),
+                               pm: parseFloat(r.vals[1][1]) })),
+    },
+    pillars: { rowHead: 'System', groups: PILLARS, best: HIGH, rows },
+  };
+}
+
+mountFlight(document.getElementById('world'), {
+  shell: 'split',
+  // THE OPENING. Not a stop: a block in normal flow, one viewport tall, that scrolls up
+  // and off with the reader. Three by three with the mark in the middle cell. Nothing in
+  // it fades and nothing in it moves - it simply leaves, the way the first screen of a
+  // page should. Cells are given in reading order and the mark is inserted at index 4.
+  opening: {
+    title: 'DuplexWorld: Can voice agents help you get through the day?',
+    mark: 'img/hero.webp',
+    markAlt: 'The DuplexWorld mark: the six worlds under one dome',
+    cells: [
+      { label: 'The paper', wide: true, text:
+        'Six worlds of an ordinary day, eleven conversation types and one twelve-metric '
+        + 'suite in three pillars, held under a single harness. Across 3,825 scored '
+        + 'conversations, none of the five commercial speech-to-speech systems evaluated '
+        + 'exceeds Pass@1 0.490, turn-taking 0.653 or DNSMOS 3.378 pooled over the worlds. '
+        + 'A different system leads each of the three.' },
+      // Figure 2(a)'s third panel, lifted from the submission at print resolution rather
+      // than redrawn: it is a density per world and the paper does not publish the
+      // durations behind it, so drawing our own would be inventing the shape.
+      // The submission's own Figure 1 panel, cropped from the arXiv page rather than
+      // redrawn: it already carries the two totals as rings, so the stat rows that used to
+      // sit above it were saying the same thing twice.
+      { label: 'The corpus', figure: 'img/fig_duration.webp',
+        figureAlt: 'Distribution across conversation time: a duration density per world '
+                 + 'with hours of speech above each, and rings for 387 measured hours of '
+                 + 'speech and 3,825 measured conversations' },
+      { label: 'Six worlds', worlds: [
+        ['Pathfinding', 'img/pathfinding.webp'], ['Banking', 'img/banking.webp'],
+        ['Healthcare', 'img/healthcare.webp'], ['Travel', 'img/travel.webp'],
+        ['Insurance', 'img/insurance.webp'], ['Logistics', 'img/logistics.webp'],
+      ] },
+      { label: 'Eleven conversation types', figure: 'img/fig_worlds.webp',
+        figureAlt: 'Distribution across worlds: 156 scenarios split between Banking, '
+                 + 'Insurance, Healthcare, Logistics, Travel and Pathfinding',
+        chips: [
+        'Single intent', 'Multi intent', 'Policy refusal', 'Record disambiguation',
+        'Identity verification', 'Guided procedure', 'Mid-call correction',
+        'Suspension', 'Narrative intake', 'Rerouting', 'All-day assistance',
+      ] },
+      { label: 'Pass@1', plot: { accent: 'var(--mag)', max: 0.55, rows: [
+        ['Voice Think Fast', 0.490], ['GPT-Realtime-2.1', 0.433],
+        ['Gemini-3.1-Flash-Live', 0.398], ['GPT-Realtime-2.1-mini', 0.188],
+        ['Nova 2 Sonic', 0.011]], short: { 'Voice Think Fast': 'Think Fast', 'GPT-Realtime-2.1': 'Realtime-2.1', 'Gemini-3.1-Flash-Live': '3.1-Flash-Live', 'GPT-Realtime-2.1-mini': 'Realtime-2.1-mini', 'Nova 2 Sonic': 'Nova 2 Sonic' } } },
+      { label: 'Turn-taking', plot: { accent: 'var(--vio)', max: 0.72, rows: [
+        ['GPT-Realtime-2.1', 0.653], ['Voice Think Fast', 0.635],
+        ['Nova 2 Sonic', 0.566], ['GPT-Realtime-2.1-mini', 0.521],
+        ['Gemini-3.1-Flash-Live', 0.388]], short: { 'Voice Think Fast': 'Think Fast', 'GPT-Realtime-2.1': 'Realtime-2.1', 'Gemini-3.1-Flash-Live': '3.1-Flash-Live', 'GPT-Realtime-2.1-mini': 'Realtime-2.1-mini', 'Nova 2 Sonic': 'Nova 2 Sonic' } } },
+      { label: 'DNSMOS', plot: { accent: 'var(--teal)', base: 3.0, max: 3.45, rows: [
+        ['Gemini-3.1-Flash-Live', 3.378], ['GPT-Realtime-2.1', 3.350],
+        ['GPT-Realtime-2.1-mini', 3.334], ['Nova 2 Sonic', 3.172],
+        ['Voice Think Fast', 3.127]], short: { 'Voice Think Fast': 'Think Fast', 'GPT-Realtime-2.1': 'Realtime-2.1', 'Gemini-3.1-Flash-Live': '3.1-Flash-Live', 'GPT-Realtime-2.1-mini': 'Realtime-2.1-mini', 'Nova 2 Sonic': 'Nova 2 Sonic' } } },
+    ],
+  },
+
+  // The dots go: a column of unlabelled marks is a slide-deck affordance, and this is a
+  // page that is read by scrolling.
+  rail: false,
+  // The bar across the top. Each entry names a real section and spans to `to`, so the one
+  // that lights is whichever range the reader is actually inside.
+  nav: [
+    { label: 'Conversation types', at: 'walks', to: 'types9' },
+    { label: 'Voice samples', at: 'runs' },
+    { label: 'Metrics', at: 'pillars3', to: 'bytype' },
+    { label: 'Results', at: 'pathfinding-pass', to: 'out' },
+  ],
+  hero: { src: 'img/hero.webp', w: 1222, h: 1254 },
+  logo: { src: 'img/hero.webp' },
+  maps: { base: './' },
+  calls: { base: './' },
+  video: {
+    src: 'flight.mp4',
+    poster: 'img/poster.webp',
+    // Dedicated scroll before the first filmed stop, played at one constant speed. It is
+    // what gives the opening dome a steady run without lengthening the walk-out after it.
+    lead: 0.35,
+    // `null` is a stop with no frame; only the two front-matter stops and the close are
+    // now unfilmed. Everything else lands on a real moment, read off the chain rather than
+    // guessed - `clips/concat.txt` gives the running order and every clip is eight seconds:
+    //
+    //   0.00 intro   8.00 pathfinding   16.00 conn_0   24.04 banking   32.04 conn_1
+    //  40.04 healthcare  48.04 conn_2  56.04 travel  64.04 conn_3  72.04 insurance
+    //  80.04 conn_4  88.08 logistics  96.08 outro   (104.08 total)
+    //
+    // Each stop sits 72% of the way into its clip: far enough in that the camera has
+    // arrived, not so far that it has begun leaving. The one exception is stop 4, which
+    // sits in conn_0 because Pathfinding's own dive is already spoken for by the walks.
+    stops: [2.00, 4.00, 5.20, 6.40, 7.50, 12.00, 29.00, 45.00, 61.00, 77.00, 93.00, 103.50],
+  },
+  // Every world, always on screen, each pointing at its own results stop - which is also
+  // the moment the film is inside that world, so clicking one is a real flight to it.
+  globes: [
+    // Indices, so they drift the moment a stop is inserted: every one of these was two
+    // out after the recorded-runs stop went in, and clicking "Banking" landed on a chart.
+    // verify_paper.py now asserts each globe reaches the section whose id it names.
+    { label: 'Pathfinding', src: 'img/pathfinding.webp', stop: 5 },
+    { label: 'Banking',     src: 'img/banking.webp',     stop: 6 },
+    { label: 'Healthcare',  src: 'img/healthcare.webp',  stop: 7 },
+    { label: 'Travel',      src: 'img/travel.webp',      stop: 8 },
+    { label: 'Insurance',   src: 'img/insurance.webp',   stop: 9 },
+    { label: 'Logistics',   src: 'img/logistics.webp',   stop: 10 },
+  ],
+  hint: 'scroll',
+  sections: [
+    // ---------------------------------------------------------------- the walks
+    {
+      id: 'walks', label: 'Pathfinding types', stage: 'film', still: null,
+      cam: { x: 0.346, y: 0.601, z: 1.75 }, scroll: 3.0, linger: 0.5, steps: 4,
+      accent: 'var(--mag)',
+      mark: { name: 'Pathfinding', line: 'Three conversation types, each shown solved and unsolved.' },
+      // No paragraph. The tiles are the argument, the types are named on them, and the
+      // paper already explains each one at length.
+      maps: {
+        cols: 3,
+        // Figures 3, 4 and 5. Each pair shares a start, a destination and a closure set, so
+        // the contrast between two tiles isolates the agent. The failures are marked as
+        // failures and nothing more: which cap they hit is a detail for the paper.
+        cells: [
+          { key: 'clean', at: 0, outcome: 'ok', cond: 'Single intent', verdict: 'Solved',
+            note: 'Five blocks of five, two turns, no closures.' },
+          { key: 'blocked_ok', at: 1, outcome: 'ok', cond: 'Rerouting', verdict: 'Solved',
+            note: 'Four unmapped closures; finds the one detour that survives.' },
+          { key: 'errand_ok', at: 2, outcome: 'ok', cond: 'All-day assistance', verdict: 'Solved',
+            note: 'The second destination is revealed only on arrival at the first.' },
+          { key: 'wander', at: 0, outcome: 'bad', cond: 'Single intent', verdict: 'Failed',
+            note: 'The same instance, three times the route.' },
+          { key: 'blocked_bad', at: 1, outcome: 'bad', cond: 'Rerouting', verdict: 'Failed',
+            note: 'The same closures, never resolved.' },
+          { key: 'errand_bad', at: 2, outcome: 'bad', cond: 'All-day assistance', verdict: 'Failed',
+            note: 'Ends with the walker believing they had arrived.' },
+        ],
+      },
+    },
+    // ------------------------------------------------- the nine enterprise conversation types
+    {
+      id: 'types9', label: 'Conversation types', stage: 'film', still: null,
+      // Its own block: nine cards want every column they can get, and the film beside them
+      // is context rather than evidence here, so the panel keeps its width and the graphic
+      // gives ground instead.
+      block: 'cards',
+      cam: { x: 0.500, y: 0.470, z: 1.00 }, scroll: 2.6, linger: 0.4,
+      accent: 'var(--viod)',
+      cards: TYPES9,
+    },
+    // ---------------------------------------------------------------- five recorded runs
+    // One run per shape, drawn from the scored corpus. The two Pathfinding ones play the
+    // walk; the three enterprise ones loop the turns where the type's own mechanic fires,
+    // with the turn range chosen from the transcript rather than the call's opening.
+    //
+    // The identity-verification and suspension runs are Travel, not Banking: those are the
+    // recorded calls that exist for those two types, and labelling a Travel call as Banking
+    // to fill a slot would be the one thing this page cannot do.
+    {
+      id: 'runs', label: 'Voice samples', stage: 'art', still: null,
+      // A clip, not a still: the walker turns from pointing at the tiles round to the
+      // viewer, headphones on. Same globe, same render, so the stage keeps moving here
+      // rather than freezing for one stop. Silent and looping.
+      art: 'img/audio-turn.mp4',
+      cam: { x: 0.500, y: 0.470, z: 1.00 }, scroll: 2.6, linger: 0.4,
+      accent: 'var(--viod)',
+      eyebrow: 'Audio samples from Duplex World',
+      foot: 'Best experienced with headphones.',
+      // `model` is the system that actually produced each recording, read off the payload's
+      // own meta.agent. It is stated here rather than derived at paint time so the tile is
+      // labelled before the payload finishes loading, and verify_paper.py asserts each one
+      // back against meta.agent so the two can never drift.
+      runs: [
+        { map: 'clean', outcome: 'ok', type: 'Single intent', world: 'Pathfinding',
+          model: 'Gemini-3.1-Flash-Live' },
+        { map: 'blocked_bad', outcome: 'bad', type: 'Rerouting, failed', world: 'Pathfinding',
+          model: 'Voice Think Fast' },
+        // Turns 19-23: the charge surfaces inside the digression and the agent has to act
+        // on it without over-reacting before the caller says it is not theirs.
+        { call: 'bank_narr_ok', from: 19, to: 23, outcome: 'ok',
+          type: 'Narrative intake', world: 'Banking', model: 'GPT-Realtime-2.1-mini' },
+        // Turns 8-14: the code never arrives, the caller offers to read one down the line,
+        // the agent refuses and steps up through the authenticator already on the account.
+        { call: 'bank_ident_ok', from: 8, to: 14, outcome: 'ok',
+          type: 'Identity verification', world: 'Travel', model: 'Gemini-3.1-Flash-Live' },
+        // Turns 17-21: she leaves mid-call and the agent has to hold every confirmed fact
+        // across the gap, then read the code back before writing it.
+        { call: 'bank_susp_ok', from: 17, to: 21, outcome: 'ok',
+          type: 'Suspension', world: 'Travel', model: 'GPT-Realtime-2.1' },
+      ],
+    },
+    // ---------------------------------------------------------------- the three pillars
+    {
+      id: 'pillars3', label: 'The metrics', stage: 'film', still: null,
+      cam: { x: 0.500, y: 0.470, z: 1.00 }, scroll: 2.2, linger: 0.4,
+      accent: 'var(--viod)',
+      // The definitions on their own were a glossary the paper already has. This is the
+      // same five runs of one Pathfinding scenario that the numbers beside them come from,
+      // so a reader watches GS, Pass@1 and Pass-cubed fall out of one set of runs and can
+      // see they are three different questions rather than three spellings of one.
+      worked: {
+        label: 'One scenario, five runs',
+        optimal: 7,
+        limit: 0.75,
+        runs: [{ blocks: 8 }, { blocks: 19 }, { blocks: 7 }, { blocks: 9 }, { blocks: 0 }],
+      },
+      cards: [
+        { name: 'Agentic capability', accent: 'var(--mag)',
+          line: 'Did it do the job.',
+          items: [['GS', 'the goal-state check: did the world end up right'],
+                  ['Pass@1', 'mean single-run reward'],
+                  ['Pass@3', 'at least one pass in three draws'],
+                  ['Pass\u00b3', 'all three of three']] },
+        { name: 'Conversational dynamics', accent: 'var(--vio)',
+          line: 'How the conversation went.',
+          items: [['TT', 'turn-taking: who spoke when, and who yielded'],
+                  ['CP', 'conversation progression, on 1 to 3'],
+                  ['SEL', 'selectivity: ignoring what was not addressed to it']] },
+        { name: 'Naturalness', accent: 'var(--teal)',
+          line: 'How it sounded.',
+          items: [['FAI', 'faithfulness of what was said, on 1 to 3'],
+                  ['DNSMOS', 'predicted mean opinion score, 1 to 5'],
+                  ['UTMOS', 'a second MOS predictor'],
+                  ['NISQA', 'a third MOS predictor']] },
+      ],
+    },
+    // ------------------------------------------- Pass@1 against the conversation types
+    {
+      id: 'bytype', label: 'Pass@1 by type', stage: 'film', still: null,
+      cam: { x: 0.500, y: 0.470, z: 1.00 }, scroll: 2.6, linger: 0.4,
+      accent: 'var(--mag)',
+      bars: {
+        label: 'Pooled over the six worlds',
+        metric: 'Pass@1',
+        max: 0.6,
+        rows: [
+          { system: 'Voice Think Fast', v: 0.490, pm: 0.039 },
+          { system: 'GPT-Realtime-2.1', v: 0.433, pm: 0.035 },
+          { system: 'Gemini-3.1-Flash-Live', v: 0.398, pm: 0.039 },
+          { system: 'GPT-Realtime-2.1-mini', v: 0.188, pm: 0.028 },
+          { system: 'Nova 2 Sonic', v: 0.011, pm: 0.007 },
+        ],
+      },
+      grouped: [
+        { label: 'The nine enterprise types', systems: SYS5, max: 0.7,
+          groups: BY_TYPE_9.map(([name, v]) => ({ name, v })) },
+        { label: 'The three Pathfinding types', systems: SYS5, max: 0.85,
+          groups: BY_TYPE_3.map(([name, v]) => ({ name, v })) },
+      ],
+    },
+    // -------------------------------------------------- Pathfinding: the scores and the block
+    // The camera is in conn_0 here, pulling up out of Pathfinding and turning towards
+    // Banking, which is exactly what this stop is doing: it closes Pathfinding out with its
+    // numbers and hands over to the five enterprise worlds.
+    //
+    // The chart and the table share a stop rather than taking one each. Pathfinding has only
+    // one dive in the chain, and giving its numbers two stops would have meant one of them
+    // sitting on a frame that belongs to another world.
+    {
+      id: 'pathfinding-pass', label: 'Pathfinding', stage: 'film', still: null,
+      cam: { x: 0.346, y: 0.601, z: 1.75 }, scroll: 5.0, linger: 0.42,
+      accent: 'var(--mag)',
+      mark: { name: 'Pathfinding',
+              line: 'A voice copilot guiding a walker who cannot see the map, over an 8 by 8 '
+                  + 'grid of city blocks.' },
+      bars: {
+        label: 'Pass@1, Pathfinding',
+        metric: 'Pass@1',
+        max: 0.7,
+        rows: [
+          { system: 'Voice Think Fast', v: 0.533, pm: 0.133 },
+          { system: 'Gemini-3.1-Flash-Live', v: 0.489, pm: 0.133 },
+          { system: 'GPT-Realtime-2.1', v: 0.200, pm: 0.111 },
+          { system: 'GPT-Realtime-2.1-mini', v: 0.089, pm: 0.078 },
+          { system: 'Nova 2 Sonic', v: 0.000, pm: 0.000 },
+        ],
+      },
+      pillars: { rowHead: 'System', groups: PILLARS, best: HIGH, rows: T3_PATHFINDING },
+    },
+    // ---------------------------------------------------------------- the six worlds
+    world('banking', 'Banking',
+      'Financial-crime statute, with authority stepped up per operation risk tier.',
+      T3_BANKING,
+      'Banking, realistic channel, n = 135 conversations per cell. The clause corpus is withheld '
+      + 'from the system prompt, so knowing when to look something up is itself under test. The '
+      + 'lowest reward of the six worlds.'),
+    world('healthcare', 'Healthcare',
+      'Lawful disclosure, decided per record through a disclosure matrix rather than per caller.',
+      T3_HEALTHCARE,
+      'Healthcare, realistic channel, n = 135 conversations per cell. A fully verified subscriber '
+      + "may be refused her adult daughter's claim while a daughter named as an authorised "
+      + "representative may act on her mother's, so a caller who passes every check can still be "
+      + 'entitled to nothing. The capability isolated is refusing without leaking in the act of '
+      + 'refusing.'),
+    world('travel', 'Travel',
+      'A limited remit between two parties, where the modal right answer is a correction or a '
+      + 'refusal with nowhere to escalate to.',
+      T3_TRAVEL,
+      'Travel, realistic channel, n = 135 conversations per cell. Restraint is scored by negative '
+      + 'assertion and write-counting rather than end state: the assertion asks whether a listing '
+      + 'was paused exactly once, because a duplicate write leaves the database looking identical '
+      + 'to a correct run. The highest single cell in the benchmark, and the world with the '
+      + 'heaviest over-effort.'),
+    world('insurance', 'Insurance',
+      'First notice of a loss the agent is structurally forbidden from adjudicating.',
+      T3_INSURANCE,
+      'Insurance, realistic channel, n = 135 conversations per cell. Authority is fixed per '
+      + 'policyholder and the refusal is institutional rather than statutory. Several such '
+      + 'regimes are enforced in the tool surface itself, which makes the unsafe behaviour '
+      + 'unrepresentable rather than merely discouraged.'),
+    world('logistics', 'Logistics',
+      'Contract topology over physical goods: who may redirect a shipment the agent can move in '
+      + 'the record but cannot see.',
+      T3_LOGISTICS,
+      'Logistics, realistic channel, n = 135 conversations per cell. It has the least to refuse '
+      + 'of the five enterprise worlds, and the smallest gap between reaching the right state '
+      + 'and completing the task: plus 0.093 against plus 0.381 in Banking.'),
+    // ---------------------------------------------------------------- the way out
+    // The film takes CENTRE stage and the copy steps aside. The chain's outro is the camera
+    // pulling back out of the last world to the whole dome, which is the opening in reverse,
+    // and it is the last thing on the page.
+    {
+      id: 'out', label: 'Duplex World', stage: 'film', still: null, layout: 'hero',
+      block: 'out',
+      cam: { x: 0.500, y: 0.480, z: 1.02 }, scroll: 2.4, linger: 0.3,
+      accent: 'var(--mag)',
+    },
+  ],
+});
+</script>
+<footer class="fw-end">
+
+</footer>
+</body>
+</html>

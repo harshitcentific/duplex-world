@@ -1,0 +1,579 @@
+/* ALT D - "Split". Loaded AFTER world.css by a second <link>, not by @import: an @import
+   inside a stylesheet serialises two round trips before any rule applies.
+
+   ALT D
+
+   The page is two halves for its whole length. Left is graphics: the film, and the six-globe
+   index. Right is everything you read, and at the navigation stop it is also where the
+   evidence goes - the six recorded walks, each with the agent that produced it.
+
+   The reason to split rather than stack: the case grid is six cards, and six cards under a
+   film leaves no room for either. Side by side, the picture can stay up while the evidence
+   scrolls past it, which is the point - you are meant to be looking at the world the numbers
+   describe while you read them.
+
+   The navigation stop unfolds in four steps as you scroll through its band, driven by
+   `data-step` on the root. One case, then two, then three, then all six with the failures
+   underneath. No extra stops: the film would need a frame for each and there is nothing new
+   to show, so the picture holds while the right column does the work. */
+
+:root {
+  --left: 52vw;
+  --gut: clamp(24px, 3vw, 56px);
+  /* THE HORIZON. One line that both halves hang from.
+     Before this the film was vertically centred (top:50%, translateY(-50%)) and the copy
+     panel was independently vertically centred inside its column. Two centred blocks of
+     different heights can never share a top edge, and they did not: measured at 1920 the
+     first painted element on the left and the first on the right differed by +231, +69,
+     +99, -85, +46, -33, +80, +42 across eight stops - eight deltas, no repeats - and the
+     eyebrow, which appears on nearly every stop, was never twice in the same place.
+     That is what "the shapes and tables do not flow" describes. */
+  --horizon: clamp(132px, 20vh, 232px);
+}
+/* Past this width the left half has room to spare and the film does not, so give the split
+   itself over: measured at 1920 the film held 18 per cent of the screen with a thousand
+   pixels of empty floor beside it. */
+@media (min-width: 1700px) { :root { --left: 56vw; } }
+
+.fw-shell-split .fw-video {
+  top: var(--horizon);
+  left: calc(var(--left) / 2 + 46px);
+  transform: translateX(-50%) scale(1.14);
+  transform-origin: top center;
+  /* The multiplier is set by the two things the film must clear: the globe index in the
+     left gutter, and the copy column's left edge. At 2.4 gutters the painted film stops
+     about ten pixels short of the index at every width from 1366 up. */
+  width: min(calc((var(--left) - var(--gut) * 2.4) / 1.14), calc((100vh - 130px) * 16 / 9 / 1.14));
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+/* The COMPUTED backdrop lives in the same box as the film.
+   It only ever shows in the single-file export, where the video config is stripped - and
+   there it had no rule at all: sized and positioned by flight.js's draw() against the whole
+   viewport, which is a stacked-shell assumption that predates this shell. Measured in the
+   export: a 1351x1386 photograph behind every stop, with the abstract, the charts, the six
+   map tiles and all seven results tables printed on top of it, and no scrim left to rescue
+   them because the scrim was retired when the film arrived. That is the whole reason the
+   artifact looked worse than the served page. */
+.fw-shell-split .fw-hero {
+  top: var(--horizon);
+  left: calc(var(--left) / 2 + 46px);
+  transform: translateX(-50%) !important;
+  transform-origin: top center;
+  width: min(calc(var(--left) - var(--gut) * 2.4), calc((100vh - 130px) * 16 / 9)) !important;
+  height: auto !important;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  /* draw() blurs and desaturates it to sell the push-in against a full-bleed backdrop.
+     Inside a frame it is the subject, not the wallpaper. */
+  filter: none !important;
+  --ramp-t: clamp(26px, calc(var(--film-h2, 300px) * 0.095), 44px);
+  --ramp-b: clamp(34px, calc(var(--film-h2, 300px) * 0.125), 92px);
+  --ramp-x: clamp(64px, calc(var(--film-w2, 500px) * 0.14), 150px);
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent 0, #000 var(--ramp-t), #000 calc(100% - var(--ramp-b)), transparent 100%),
+    linear-gradient(to right, transparent 0, #000 var(--ramp-x), #000 calc(100% - var(--ramp-x)), transparent 100%);
+  -webkit-mask-composite: source-in;
+  -webkit-mask-repeat: no-repeat;
+  mask-image:
+    linear-gradient(to bottom, transparent 0, #000 var(--ramp-t), #000 calc(100% - var(--ramp-b)), transparent 100%),
+    linear-gradient(to right, transparent 0, #000 var(--ramp-x), #000 calc(100% - var(--ramp-x)), transparent 100%);
+  mask-composite: intersect;
+  mask-repeat: no-repeat;
+}
+/* The sky is a full-stage wash; behind a framed backdrop it is a grey haze over the copy. */
+.fw-shell-split .fw-sky { display: none; }
+
+.fw-shell-split .fw-copy {
+  max-width: calc(var(--vw) - var(--left) - var(--gut));
+  left: var(--left);
+  right: var(--gut);
+  top: 0;
+  bottom: 0;
+  transform: none;
+  width: auto;
+  align-items: start;
+  overflow-y: auto;
+  /* `contain` here is a trap, not a nicety. If the column ever does overflow, containment
+     stops the leftover wheel reaching the page, so the flight freezes and the wheel reads
+     as broken. Chaining degrades instead: the column takes up its slack, then the page
+     carries on. The rules below exist so this path is reached as rarely as possible. */
+  overscroll-behavior: auto;
+  padding: var(--horizon) 0 32px;
+  /* The same clock as the film beside it. --left steps from 52vw to 34vw when the block
+     changes from prose to a table, and with no transition the copy column teleported 281px
+     left and grew 281px wider in a single frame while the film next to it eased its width
+     over 550ms. Two halves of one screen changing shape on two different clocks is the
+     thing that reads as not flowing. */
+  transition: left .55s cubic-bezier(.3,.7,.3,1),
+              right .55s cubic-bezier(.3,.7,.3,1),
+              max-width .55s cubic-bezier(.3,.7,.3,1);
+}
+.fw-shell-split .fw-panel { align-self: start; text-align: left; }
+/* Six cards plus two prose columns plus a call to action is the tallest panel on the page,
+   and on a 768px-tall laptop it is the one that decides whether the column scrolls inside
+   itself - which on a scroll-driven page reads as the wheel having stopped working. These
+   are the millimetres that keep it out of that state. */
+.fw-shell-split .fw-cases { gap: 8px; }
+.fw-shell-split .fw-case { padding: 9px 10px 10px; }
+.fw-shell-split .fw-case-model { margin-bottom: 7px; }
+.fw-shell-split .fw-case-note { margin-top: 7px; padding-top: 6px; }
+.fw-shell-split .fw-panel-hero { text-align: left; max-width: none; margin-inline: 0; }
+.fw-shell-split .fw-panel-hero .fw-body { margin-inline: 0; }
+.fw-shell-split .fw-panel-hero .fw-tags,
+.fw-shell-split .fw-panel-hero .fw-cta { justify-content: flex-start; }
+.fw-shell-split .fw-title { font-size: clamp(24px, 2.1vw, 34px); }
+/* Not `none`: uncapped this ran to 103 characters a line at 1920. */
+.fw-shell-split .fw-body { max-width: 64ch; }
+.fw-shell-split .fw-pair { grid-template-columns: 1fr 1fr; gap: clamp(18px, 2vw, 32px); }
+
+/* The index sits in the left gutter, so it is left-aligned rather than centred: a label like
+   "Pathfinding" is wider than the 52px thumbnail above it, and centring meant the overhang
+   ran off the left edge of the window. Aligned left, the label grows into the gutter
+   instead, which is empty. */
+.fw-shell-split .fw-globes {
+  right: auto;
+  left: clamp(10px, 1.4vw, 20px);
+  gap: clamp(2px, 0.7vh, 8px);
+  align-items: flex-start;
+}
+.fw-shell-split .fw-globe { align-items: flex-start; padding-inline: 0; }
+/* Capped and allowed to wrap. At 14px a single-line "Pathfinding" is wider than the gutter
+   and ran under the film; wrapped inside the thumbnail's own width it stays in the gutter
+   at every laptop width, which is what the index is for. */
+.fw-shell-split .fw-globe-label {
+  text-align: left;
+  max-width: 86px;
+  white-space: normal;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+/* Inside the right margin, never past it. A negative inset here put the dots half off the
+   edge of the window. */
+.fw-shell-split .fw-rail {
+  left: auto;
+  right: clamp(4px, 0.6vw, 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: none;
+}
+/* Unlabelled, these dots were a 9x21 hit target - under the 24x24 WCAG 2.2 minimum, and at
+   1920 they read as dust in the gutter rather than as navigation. The padding is the target;
+   the mark stays the same size. */
+.fw-shell-split .fw-dot { padding: 7px 8px; }
+.fw-shell-split .fw-dot-mark { width: 10px; height: 10px; }
+.fw-shell-split .fw-dot-label { display: none; }
+/* The autoplay control is gone: this is a page that is read by scrolling. */
+.fw-shell-split .fw-auto { display: none; }
+.fw-shell-split .fw-hint { display: none; }
+
+
+
+/* Short-viewport compaction. On a 1366x768 laptop the final reveal - two prose columns,
+   six cards and a caption - overran the column by 256px and started scrolling inside
+   itself, which on a scroll-driven page reads as the wheel having stopped working. Nothing
+   is removed here; the type and the gaps give up the millimetres instead. */
+@media (max-height: 850px) and (min-width: 1041px) {
+  .fw-shell-split { --horizon: 104px; }
+  .fw-shell-split .fw-copy { padding-bottom: 16px; }
+  .fw-shell-split .fw-title { margin-bottom: 6px; }
+  .fw-shell-split .fw-pair { margin-top: 9px; }
+  .fw-shell-split .fw-col-body { font-size: 14px; line-height: 1.5; }
+  .fw-shell-split .fw-cases { gap: 7px; }
+  .fw-shell-split .fw-case { padding: 8px 9px 9px; }
+  .fw-shell-split .fw-case-nums { gap: 4px 10px; }
+  .fw-shell-split .fw-case-num strong { font-size: 14px; }
+  .fw-shell-split .fw-case-note { font-size: 14px; line-height: 1.38; margin-top: 6px; padding-top: 5px; }
+  .fw-shell-split .fw-cases-label { margin-top: 10px; }
+  .fw-shell-split .fw-cases-label + .fw-cases { margin-top: 6px; }
+}
+
+/* ===========================================================================
+   The paper layout
+   ---------------------------------------------------------------------------
+   The split is not the same shape at every stop any more. Three cases:
+
+     stage="logo" at the opening   the page is ONE centred column, front matter
+                                   only, and the mark sits above the title. The
+                                   split has not engaged yet, which is what makes
+                                   the mark's move to the left read as a move.
+     stage="film"                  the split as it was: film left, evidence right.
+     stage="mark"                  a world name left, its whole results table
+                                   right, so the right column takes more width -
+                                   which is what pays for eleven columns and
+                                   their half-widths.
+   ========================================================================= */
+
+/* The way out. The film takes CENTRE stage and the copy steps aside: it is the last thing
+   on the page and there is nothing left to read beside it. */
+.fw-shell-split[data-block="out"] { --left: 100vw; }
+.fw-shell-split[data-block="out"] .fw-video,
+.fw-shell-split[data-block="out"] .fw-hero {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(1.06) !important;
+  transform-origin: center;
+  /* 100vh - 210px so the frame clears the topbar above it and the autoplay control below;
+     centred and full-bleed it reached under both. */
+  width: min(calc(var(--vw) - 14vw), calc((100vh - 210px) * 16 / 9)) !important;
+}
+.fw-shell-split[data-block="out"] .fw-copy,
+.fw-shell-split[data-block="out"] .fw-globes {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.fw-shell-split[data-block="out"] .fw-mark { display: none; }
+
+/* Front matter: the SPLIT, not a centred column.
+   The mark and the title used to be a single centred column with the abstract under it, and
+   nothing else. It is now the same two halves as every other stop - the film on the left at
+   the size it keeps for the whole page, so nothing jumps when the flight starts - with the
+   title, the abstract and the three figures the abstract claims stacked on the right.
+   The film holds on its opening frame here; it only begins to move at stop 2. */
+.fw-shell-split[data-stop="0"] .fw-panel-hero,
+.fw-shell-split[data-stop="0"] .fw-panel-hero .fw-body { text-align: left; margin-inline: 0; }
+.fw-shell-split[data-stop="0"] .fw-panel-hero .fw-tags,
+.fw-shell-split[data-stop="0"] .fw-panel-hero .fw-cta { justify-content: flex-start; }
+/* The title is the largest thing on the page and it shares a screen with an abstract and
+   three plots, so it gives up a step. */
+.fw-shell-split[data-stop="0"] .fw-title {
+  font-size: clamp(21px, 1.72vw, 29px);
+  margin-bottom: 2px;
+}
+/* The opening keeps the same split as every other stop: the mark on the left at the size
+   it holds for the whole page, the tiles in the right column. The tiles scroll up and out;
+   the mark does not move. An earlier cut made this stop full-bleed with the mark as the
+   middle cell of the matrix, which meant the mark had to fly out to the left at the next
+   stop - a move the page was never asked to make. */
+/* The opening carries more than any other stop - an abstract, four tiles and three plots -
+   so it starts higher than the shared horizon. It is the one stop where the two halves do
+   not begin on the same line, and it is worth it: the alternative is a column that scrolls
+   inside itself, which on a scroll-driven page reads as the wheel having stopped. */
+/* The walks take three quarters of the page. One map alone was a fifth of the screen in a
+   half-width column - the evidence given less room than the picture of the world it is
+   evidence about. The world graphic keeps a quarter, which is all a name plate needs. */
+.fw-shell-split[data-block="maps"] { --left: 24vw; }
+.fw-shell-split[data-block="maps"] .fw-video,
+.fw-shell-split[data-block="maps"] .fw-hero {
+  width: min(calc((var(--left) - var(--gut) * 1.1) / 1.14), calc((100vh - 260px) * 16 / 9 / 1.14));
+}
+.fw-shell-split[data-block="maps"] .fw-maps {
+  --map-tall: clamp(300px, 60vh, 640px);
+  --map-h: calc((var(--map-tall) - 9px) / 2);
+}
+/* The index would print through the matrix, and the "six worlds" tile already names them.
+   `visibility` as well as opacity: at opacity alone the six labels stay in the accessibility
+   tree and in a page search, under a copy column that now spans the whole width. */
+.fw-shell-split[data-block="summary"] .fw-globes {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* The mark travels between these two. --left is where it ends up; the interpolation itself
+   is --logo-t, written per frame by flight.js.
+
+   Its vertical travel ends ON THE HORIZON, not at the middle of the window. The base sheet
+   centres it, which is right for the front matter where it sits above the title and wrong
+   everywhere else: measured at 1920, the two stops that show the mark were the only two
+   left of the twelve whose left half did not start on the same line as the right. The
+   1.0262 is the hero's own aspect (1254/1222), halved, which converts its width into the
+   distance from its top edge to its centre - the element is translate(-50%, -50%). */
+.fw-shell-split .fw-logo {
+  --left: 52vw;
+  top: calc(15% + (var(--horizon) + var(--logo-w) * 0.5131 - 15%) * var(--logo-t));
+}
+
+/* The name plate belongs to the LEFT half, over the film. The base sheet spans the stage
+   because on the stacked shell the stage IS the whole page; left spanning here it centred
+   itself over the middle of the window, which is the middle of the results table - measured,
+   the word "Banking" printed straight through six rows of numbers.
+   The left inset clears the world index, which lives in the same gutter. */
+/* Under the film, aligned to its left edge. --film-x/--film-w2/--film-bot are the film's
+   MEASURED box, published by flight.js after every layout and stop change: the picture is
+   not a fixed size (each stop gets its own) or a fixed place (each shell puts it somewhere
+   else), so there is nothing in the sheet alone to anchor to. Anchored to the stage instead,
+   the plate sat at the bottom of the window while the film floated in the middle of it. */
+.fw-shell-split .fw-mark {
+  right: auto;
+  bottom: auto;
+  /* max() against the index's own right edge, not just the film's left. At 1366 the film
+     is wide enough that its left edge sits INSIDE the index, and the plate printed
+     "Pathfinding" straight through the index's labels. The index is a 52px thumbnail at
+     left: clamp(10px, 1.4vw, 20px) with a label under it, so 96px clears the widest of
+     them at every width the split is used at. */
+  left: max(calc(var(--film-x, 100px) + clamp(8px, 1vw, 22px)), 96px);
+  width: calc(min(var(--film-w2, 420px), var(--left) - 96px) - clamp(16px, 2vw, 44px));
+  top: calc(var(--film-bot, 60%) - clamp(6px, 1.2vh, 14px));
+  padding-inline: 0;
+}
+
+/* A table stop: the evidence is eleven columns wide, so the split moves to meet it. Keyed
+   to what the RIGHT column carries, not to what is on the left: the suite stop is a film
+   stop whose content is the same eleven-column table, and left at the film's 52vw its
+   Naturalness pillar was cut off entirely. */
+/* Five recorded runs need room to be read, so this stop takes the table stops' split.
+   Its artwork is TOP-ALIGNED with the tiles beside it rather than floating at the film's
+   own vertical centre: the two halves of this stop are one figure and its caption. */
+.fw-shell-split[data-block="runs"] { --left: 32vw; }
+.fw-shell-split .fw-art {
+  top: var(--horizon);
+  left: calc(var(--left) / 2 + 46px);
+  transform: translateX(-50%);
+  transform-origin: top center;
+  width: min(calc(var(--left) - var(--gut) * 1.6), calc((100vh - 260px) * 3 / 2));
+  height: auto;
+}
+
+.fw-shell-split[data-block="table"] { --left: 34vw; }
+
+/* A world stop is a chart AND a table of the same numbers, STACKED, both at the column's
+   full width. Side by side was tried and is wrong here: it left the table about 540px, and
+   eleven columns will not fit 540px at any size worth reading, so the Naturalness pillar
+   was cut off at every world. Stacked, the table gets the whole column and the pair still
+   fills the height that one figure alone left three quarters empty. */
+.fw-shell-split .fw-panel:has(.fw-bars):has(.fw-pillars) .fw-bars { margin-top: 14px; }
+.fw-shell-split .fw-panel:has(.fw-bars):has(.fw-pillars) .fw-pillars-wrap { margin-top: 18px; }
+/* The chart is the summary and the table is the detail, so the chart is set slightly
+   tighter: it should read at a glance rather than compete with the table below it. */
+.fw-shell-split .fw-panel:has(.fw-bars):has(.fw-pillars) .fw-bar-track { height: 17px; }
+.fw-shell-split .fw-panel:has(.fw-bars):has(.fw-pillars) .fw-bars-list { gap: 5px; }
+
+/* The film is the left half's tenant, not its owner: at a table stop it takes what is left
+   rather than setting the width. */
+.fw-shell-split[data-block="table"] .fw-video {
+  width: min(calc((var(--left) - var(--gut) * 1.6) / 1.14), calc((100vh - 190px) * 16 / 9 / 1.14));
+}
+
+/* The copy must clear the rail, not merely avoid its centre. The rail is 26px wide inside a
+   12px inset, so anything less than that and a right-aligned number sits under a dot. */
+.fw-shell-split .fw-copy { right: calc(var(--gut) + 22px); }
+
+/* A stop whose evidence is a table is a different shape from one whose evidence is prose:
+   the prose is an introduction to the table rather than the point of the stop, so it gives
+   up the room. Measured at 1560x900 the six world panels ran 74 to 122px past the column
+   and started scrolling inside themselves, which on a scroll-driven page reads as the wheel
+   having stopped working. */
+.fw-shell-split .fw-pillars-wrap + .fw-note,
+.fw-shell-split .fw-panel:has(.fw-pillars) .fw-body { max-width: 74ch; }
+.fw-shell-split .fw-panel:has(.fw-pillars) .fw-title { margin-bottom: 5px; }
+.fw-shell-split .fw-pillars-wrap { margin-top: 11px; }
+.fw-shell-split .fw-pillars td,
+.fw-shell-split .fw-pillars .fw-p-metrics th { padding: 4px 5px; }
+.fw-shell-split .fw-pillars th.fw-p-sys { padding: 4px 10px 4px 0; }
+
+/* Eleven columns of numbers want to be read as rows, so the system column stays put while
+   the metrics scroll under it on a narrow screen. */
+.fw-shell-split .fw-pillars th.fw-p-sys {
+  position: sticky;
+  left: 0;
+  background: var(--bg);
+  z-index: 1;
+}
+
+/* Six live renderers plus their captions is the tallest block on the page, and the copy
+   column is the only thing holding it. The row height is what decides whether it fits, and
+   the map has to win it: the head and the note cost about 88px of every row, so a row under
+   about 180px leaves a strip of map rather than a map. */
+/* The walks stop gives its whole band to the walks: one map alone takes the height six
+   will share, and only the last step splits it. */
+.fw-shell-split .fw-maps {
+  --map-tall: clamp(250px, 50vh, 520px);
+  --map-h: calc((var(--map-tall) - 9px) / 2);
+}
+
+/* Under this width there is no second column worth having, so it stacks like the base page. */
+@media (max-width: 1040px) {
+  .fw-shell-split .fw-video {
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: min(var(--vw), calc(44vh * 16 / 9));
+  }
+  .fw-shell-split .fw-copy {
+    /* max-width was copy-pasted in from the two-column rule and evaluated to 48vw - gut
+       here, clamping a column that had just been told to be the full viewport width to
+       under half of it. */
+    max-width: none;
+    left: 50%; right: auto;
+    transform: translateX(-50%);
+    top: 44vh; bottom: 0;
+    width: calc(var(--vw) - 28px);
+    align-items: start;
+    padding: 16px 0 24px;
+  }
+  .fw-shell-split .fw-panel { align-self: start; }
+  .fw-shell-split .fw-cases { grid-template-columns: repeat(2, 1fr); }
+  .fw-shell-split[data-step="0"] .fw-case.is-ok[data-at="0"] { grid-column: span 2; }
+  .fw-shell-split .fw-pair { grid-template-columns: 1fr; }
+  /* Once the copy is centred and full width there is no left gutter left to stand in, and
+     the index sits at z-index 8 over copy at z-index 6. Both index and rail become
+     horizontal strips in the gap between the film and the copy instead. */
+  .fw-shell-split .fw-globes {
+    left: 50%; right: auto; top: calc(44vh - 52px);
+    transform: translateX(-50%);
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .fw-shell-split .fw-globe { align-items: center; }
+  .fw-shell-split .fw-globe img { width: 34px; }
+  .fw-shell-split .fw-globe-label { display: none; }
+  /* On the same strip as the index, not below it: at 44vh + 6px the dots landed inside the
+     copy column, which starts at 44vh. */
+  .fw-shell-split .fw-rail {
+    left: auto; right: 10px; top: calc(44vh - 46px);
+    transform: none;
+    flex-direction: row;
+    gap: 8px;
+  }
+  /* Autoplay is a leave-it-running-in-a-room control, which is a desk or a kiosk, not a
+     phone. Pinned to the bottom-left of the stage it sat ON the copy - measured, over a map
+     caption and over the "Nova 2 Sonic" bar label - and reserving a strip for it did not
+     help, because the column scrolls inside itself here so there is always something
+     passing under it. */
+  .fw-shell-split .fw-auto { display: none; }
+
+  /* PHONE. Everything that is a row of tiles on a laptop becomes a column, and the stops
+     that carry the most give the picture back most of its band. The copy column still
+     scrolls inside itself on the densest stops - an abstract plus six tiles cannot be made
+     to fit 504px - but it CHAINS, so the wheel keeps working and the page carries on. */
+  .fw-shell-split .fw-sum { grid-template-columns: 1fr; }
+  .fw-shell-split .fw-sum-abstract { grid-column: 1; column-count: 1; }
+  .fw-shell-split .fw-runs { grid-template-columns: 1fr; height: auto; }
+  .fw-shell-split .fw-run { grid-column: 1 !important; min-height: 210px; }
+  .fw-shell-split .fw-cards { grid-template-columns: 1fr; }
+  .fw-shell-split .fw-work-out { grid-template-columns: repeat(3, 1fr); }
+  .fw-shell-split .fw-work-row { grid-template-columns: 4.5ch 1fr 10ch; gap: 7px; }
+  .fw-shell-split .fw-grp-name { font-size: 14px; }
+  .fw-shell-split[data-block="summary"] .fw-copy,
+  .fw-shell-split[data-block="runs"] .fw-copy { top: 26vh; }
+  .fw-shell-split[data-block="summary"] .fw-video,
+  .fw-shell-split[data-block="summary"] .fw-hero,
+  .fw-shell-split[data-block="runs"] .fw-art {
+    width: min(var(--vw), calc(25vh * 16 / 9));
+  }
+  .fw-shell-split[data-block="runs"] .fw-art { left: 50%; top: 0; }
+  /* The section bar is the page's navigation on a phone, so it stays - wrapped, scrolling
+     sideways if it must, rather than hidden behind a menu the reader has to find. */
+  .topbar { flex-wrap: wrap; row-gap: 4px; padding-bottom: 6px; }
+  .fw-nav { margin-left: 0; width: 100%; justify-content: flex-start; overflow-x: auto;
+    flex-wrap: nowrap; scrollbar-width: none; }
+  .fw-nav::-webkit-scrollbar { display: none; }
+  .fw-nav-item { font-size: 14px; padding: 5px 9px; }
+  /* The name plate shares the top strip with the world index on a phone, so it starts
+     after it rather than under it. */
+  .fw-shell-split[data-block="table"] .fw-mark {
+    left: 0;
+    width: 100%;
+    padding-left: calc(clamp(52px, 15vw, 76px) + 14px);
+  }
+
+  /* The stage earns its 44vh only when there is something in it worth 44vh. On a phone
+     the front matter and the world stops are text, and giving nearly half the screen to a
+     decorative mark left the abstract 304px past the bottom of its column. So the picture
+     yields to the reading on exactly the stops where the reading is the point. */
+  .fw-shell-split[data-stage="logo"] .fw-copy { top: clamp(132px, 19vh, 190px); }
+  .fw-shell-split[data-stage="mark"] .fw-copy { top: clamp(150px, 22vh, 220px); }
+  .fw-shell-split[data-stage="logo"] .fw-logo,
+  .fw-shell-split[data-stage="mark"] .fw-mark { --logo-lg: 30vw; }
+  .fw-shell-split[data-stage="mark"] .fw-mark {
+    inset: 0 0 auto 0;
+    width: auto;
+    height: clamp(140px, 21vh, 210px);
+    flex-direction: row;
+    gap: 12px;
+    text-align: left;
+    align-items: center;
+  }
+  .fw-shell-split[data-stage="mark"] .fw-mark-globe { width: clamp(52px, 15vw, 76px); }
+  .fw-shell-split[data-stage="mark"] .fw-mark-name { font-size: clamp(24px, 7vw, 34px); }
+  .fw-shell-split[data-stage="mark"] .fw-mark-line { font-size: 14px; max-width: none; }
+  /* The index and the rail belong to the film's strip. On a text stop the film is not
+     there, so they would print over the copy. */
+  .fw-shell-split[data-stage="logo"] .fw-globes,
+  .fw-shell-split[data-stage="logo"] .fw-rail,
+  .fw-shell-split[data-stage="mark"] .fw-globes { opacity: 0; pointer-events: none; }
+  .fw-shell-split[data-stage="mark"] .fw-rail { top: 8px; }
+  /* The walks stop is the one place on a phone where the picture on the left is the LEAST
+     valuable thing on screen: the maps are also pictures, they are the evidence, and there
+     are six of them. So the film gives up most of its band here and nowhere else. */
+  .fw-shell-split[data-block="maps"] .fw-video { width: min(var(--vw), calc(26vh * 16 / 9)); }
+  .fw-shell-split[data-block="maps"] .fw-copy { top: 27vh; }
+  .fw-shell-split[data-block="maps"] .fw-globes { top: calc(26vh - 44px); }
+  .fw-shell-split[data-block="maps"] .fw-rail { top: calc(26vh - 40px); }
+  .fw-shell-split[data-block="maps"] .fw-body { font-size: 14px; line-height: 1.5; }
+  /* A five-row chart plus its caption is taller than a paragraph, by about the height of
+     the chart. Same trade, smaller. */
+  .fw-shell-split[data-block="bars"] .fw-video { width: min(var(--vw), calc(36vh * 16 / 9)); }
+  .fw-shell-split[data-block="bars"] .fw-copy { top: 37vh; }
+  .fw-shell-split[data-block="bars"] .fw-globes { top: calc(36vh - 44px); }
+  .fw-shell-split[data-block="bars"] .fw-rail { top: calc(36vh - 40px); }
+  /* Nineteen characters of label is four of the twenty-six available at 430. */
+  .fw-shell-split .fw-bar-row { grid-template-columns: minmax(0, 11ch) 1fr auto; gap: 8px; }
+  .fw-shell-split .fw-bars-axis { margin-left: calc(11ch + 8px); }
+  /* The abstract is the longest single block on the page and the front matter is the one
+     stop with nothing else competing, so it takes the smaller size rather than the scroll. */
+  .fw-shell-split[data-stop="0"] .fw-abstract-p { font-size: 14px; line-height: 1.55; }
+
+  /* Two across rather than three: at 430 a third of the width is 130px of map. */
+  .fw-shell-split .fw-maps {
+    --map-tall: clamp(200px, 34vh, 300px);
+    --map-h: calc((var(--map-tall) - 9px) / 2);
+  }
+  .fw-shell-split[data-step="2"] .fw-maps,
+  .fw-shell-split[data-step="3"] .fw-maps { grid-template-columns: 1fr 1fr; }
+  .fw-shell-split[data-step="2"] .fw-maps { grid-template-rows: var(--map-h) var(--map-h); }
+  .fw-shell-split[data-step="3"] .fw-maps {
+    grid-template-rows: var(--map-h) var(--map-h) var(--map-h);
+  }
+}
+
+/* The nine conversation types. The RIGHT panel is unchanged from the text stops - nine cards
+   need that width and losing it costs a card per row - so the left graphic is what shrinks. */
+.fw-shell-split[data-block="cards"] { --left: 52vw; }
+.fw-shell-split[data-block="cards"] .fw-video,
+.fw-shell-split[data-block="cards"] .fw-art {
+  width: min(calc((var(--left) - var(--gut) * 2.4) / 1.62), calc((100vh - 130px) * 16 / 9 / 1.62));
+  left: calc(var(--left) / 2 + 20px);
+}
+
+/* Small laptops: the left gutter has to hold a 52px thumbnail AND a wrapped 14px label, so
+   the stage centre moves right by exactly that gutter rather than the film and the index
+   sharing pixels. Measured at 1366 and 1440, where they overlapped by 11% of the index. */
+@media (max-width: 1500px) {
+  .fw-shell-split .fw-video,
+  .fw-shell-split .fw-art {
+    left: calc(var(--left) / 2 + 46px + 44px);
+  }
+  /* The name plate is TEXT, so it does not move with the stage: shifted right by the same
+     44px its longest line ran under the table beside it. It stays put and is capped to the
+     column it lives in. */
+  .fw-shell-split .fw-mark {
+    max-width: calc(var(--left) - var(--gut) * 1.5 - 60px);
+  }
+  /* The two stops whose evidence is WIDE (six live maps, a five-row chart) take the left
+     column down to 24vw, which is not enough for a name plate as well. On those the plate
+     rides in the gutter above the index instead of beside the evidence. */
+  .fw-shell-split[data-block="maps"] .fw-mark,
+  .fw-shell-split[data-block="bars"] .fw-mark {
+    left: clamp(10px, 1.4vw, 20px);
+    transform: none;
+    text-align: left;
+    max-width: 200px;
+  }
+  /* One thing in the gutter at a time. The plate names the stop the reader is on, which the
+     index cannot do, and the header bar above already carries the navigation the index
+     duplicates - so on these two stops the index stands down. */
+  .fw-shell-split[data-block="maps"] .fw-globes,
+  .fw-shell-split[data-block="bars"] .fw-globes { opacity: 0; pointer-events: none; }
+  /* The table stops keep both, so the plate is capped clear of the first table column. */
+  .fw-shell-split[data-block="table"] .fw-mark { max-width: 190px; }
+  .fw-shell-split .fw-video,
+  .fw-shell-split .fw-art {
+    width: min(calc((var(--left) - var(--gut) * 2.4 - 88px) / 1.14),
+               calc((100vh - 130px) * 16 / 9 / 1.14));
+  }
+}

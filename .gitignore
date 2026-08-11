@@ -1,0 +1,8 @@
+# Never. Keys are read from the environment at runtime and belong nowhere near this repo.
+.env
+.env.*
+*.key
+*.pem
+secrets*
+__pycache__/
+.DS_Store

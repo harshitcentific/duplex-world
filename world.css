@@ -1,0 +1,2301 @@
+/* Duplex World flight page.
+
+   Committed to a single LIGHT world on purpose, and the reason changed with the artwork.
+   The first build had knocked-out globes on transparency, so a night vitrine was right.
+   The page now plays a rendered chain shot on a plain white studio floor - measured across
+   the five stops, that backdrop runs #f7f4f9 to #d6d7da - so a dark page forced a scrim over
+   a bright film and turned it grey. Here the page ground IS the studio floor: the diorama
+   floats in it and the copy sits below on the same surface.
+
+   Ink and accents are sampled from the artwork's own purple base and magenta paths, then
+   darkened until they hold against a light ground rather than a dark one. */
+
+:root {
+  /* --bg-base is the sheet's answer; --bg is what is actually painted.
+     They differ because the film's floor is not one colour. Sampled off flight.mp4's own
+     border pixels it runs #e6e5e6 at the opening, #f5f2f1 at the third stop and #fefefe at
+     the close - so against any fixed value there is a visible seam somewhere, and at the
+     closing stop it was 22 levels, landing exactly where the reader stops moving and looks.
+     flight.js samples the live frame and eases --bg toward it, then eases back to this when
+     the film is not the stage. Nothing else in this sheet may write --bg. */
+  /* THE PALETTE IS THE DECK'S, not a second one invented beside it. Lifted verbatim from
+     speech_sync_8.html so the page and the talk are visibly the same piece of work: five
+     semantic families, each with a base, a dark that holds on light ground, a tinted
+     background and a line. */
+  --ink:       #0E1029;
+  --ink2:      #1C1F45;
+  --text:      #21233F;
+  --soft:      #55586F;
+  --grey:      #767892;
+  --mag:       #E0107E;   --magd: #A80B5E;  --magbg: #FDE9F4;  --magln: #F2C2DC;
+  --vio:       #5B4DB7;   --viod: #3A2F86;  --viobg: #ECEAF8;  --violn: #D9D5F0;
+  --teal:      #0E7E55;   --teald: #0B5C40; --tealbg: #E7F6F0; --tealln: #C7E6D8;
+  --amb:       #B8860B;   --ambd: #7A5200;  --ambbg: #FFF6E2;  --ambln: #EBD49A;
+  --red:       #C0392B;   --redbg: #FDEDEB; --redln: #F2C9C3;
+  --paper:     #ffffff;
+  --bg-base:   #F4F5F9;   /* the deck's surface, and near the film's own studio floor */
+  --bg:        var(--bg-base);
+  /* The page's own names, mapped onto the deck's. Kept so every existing rule reads the
+     same and only these five lines decide what colour anything is. */
+  --ink-soft:  var(--text);
+  --ink-dim:   var(--grey);
+  --magenta:   var(--magd);
+  --line:      #E5E5EF;
+  --glass:     rgba(255, 255, 255, 0.74);
+  --font-ui:   ui-sans-serif, system-ui, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* One scale, five steps. The page previously carried twelve distinct sizes between 11px
+     and 20px, including half-pixel values, which is the tell that they were nudged one at
+     a time rather than derived. --t-ctrl is deliberately off-scale: controls read better
+     slightly smaller than body. */
+  --t-micro:   12px;                        /* eyebrows, tags, rail, hint */
+  --t-ctrl:    13.5px;                      /* buttons and links */
+  --t-body:    15px;
+  --t-lead:    19px;                        /* pair column titles */
+  --t-display: clamp(25px, 2.6vw, 38px);    /* 38 is the widest the longest title fits */
+  /* How much of the viewport the film occupies. The copy gets the rest, and because the
+     two never overlap there is no scrim anywhere on this page.
+
+     The 320px floor is not decorative: a pair panel measures 265px, so on a 1366x768
+     laptop a flat 60vh left the primary CTA below the fold of a stage that is
+     overflow:hidden - it vanished silently. Below about 743px tall the film yields
+     instead. --film-w/--film-h are the film's REAL painted box, which the mask needs. */
+  /* The classic scrollbar's width, measured and written by layout(). 100vw includes it and
+     documentElement.clientWidth does not, so every width derived from raw 100vw overshot by
+     15px - at 430px that put the film at x = -7 with both edges clipped by the stage. */
+  --sbw:    0px;
+  --vw:     calc(100vw - var(--sbw));
+  --film:   min(60vh, calc(100vh - 320px));
+  --film-w: min(var(--vw), calc(var(--film) * 16 / 9));
+  --film-h: min(var(--film), calc(var(--vw) * 9 / 16));
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+/* Smooth applies to reader-initiated jumps (a rail dot, an anchor). Every programmatic
+   write in flight.js passes behavior:'instant' explicitly, because a two-argument scrollTo
+   resolves to THIS value and would animate the autoplay accumulator instead of setting it.
+   The single copy of the narrow-rail rule now lives with the rail, further down. */
+html { scroll-behavior: smooth; }
+
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ------------------------------------------------------------------ topbar */
+
+.topbar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px clamp(16px, 3vw, 34px);
+  pointer-events: none;
+}
+.topbar > * { pointer-events: auto; }
+
+/* Below the phone breakpoint there is not room for the wordmark and three pills on one
+   line: the bar grew to 98px, wrapped one label onto three lines, cut another at the right
+   edge and then covered 40 per cent of the film. The secondary links stand down; both
+   destinations are still reachable from the closing panel. */
+@media (max-width: 900px) {
+  .topbar { gap: 8px; padding: 10px 12px; }
+  .topbar .linkbtn:not(:last-child) { display: none; }
+  .wordmark .sub { display: none; }
+}
+
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  font-size: 15px;
+}
+.wordmark .dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--magenta);
+  box-shadow: 0 0 0 4px rgba(184, 18, 90, 0.16);
+  align-self: center;
+}
+.wordmark .sub {
+  color: var(--ink-dim);
+  font-weight: 600;
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.topbar .spacer { flex: 1; }
+
+.linkbtn {
+  display: inline-flex; align-items: center; gap: 7px;
+  font: inherit; font-size: var(--t-ctrl); font-weight: 600;
+  color: var(--ink-soft);
+  text-decoration: none;
+  padding: 7px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--glass);
+  transition: color .18s, border-color .18s, background .18s;
+}
+.linkbtn:hover { color: var(--ink); border-color: rgba(184, 18, 90, .5); background: #fff; }
+.linkbtn:focus-visible { outline: 2px solid var(--magenta); outline-offset: 2px; }
+
+/* ------------------------------------------------------------------- stage */
+
+.fw-stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: 1;
+  /* The copy band is floor in slight shadow, so the film above it reads as lit. */
+  background: var(--bg);
+}
+
+/* Only reachable in the computed-camera fallback, where there is no film to sit on. */
+.fw-sky {
+  position: absolute; inset: -10%;
+  /* It is decoration spanning the whole stage, so it must never take a click. On the served
+     page it is display:none and this never mattered; in the single-file export it is live,
+     and it was swallowing hit-testing across the entire viewport. */
+  pointer-events: none;
+  background:
+    radial-gradient(58% 48% at 22% 18%, rgba(99, 47, 128, 0.10), transparent 62%),
+    radial-gradient(52% 44% at 82% 74%, rgba(184, 18, 90, 0.08), transparent 60%);
+}
+
+.fw-hero {
+  position: absolute;
+  top: 0; left: 0;
+  transform-origin: 0 0;
+  will-change: transform, filter;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* The rendered flight, held in the upper band rather than full-bleed.
+
+   Measured on the real frames, there is no reliably empty region inside this film: at the
+   healthcare+travel stop it is 81 percent ink with ZERO empty columns across the lower half.
+   So no amount of clever text placement avoids collision while the film fills the viewport -
+   the film has to stop filling it. */
+.fw-video {
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: var(--film-w);
+  height: var(--film-h);
+  /* `contain`, not `cover`: cover was discarding 48 percent of a 16:9 frame in a 3.4:1
+     band and beheading the dome at the opening stop. The element is now itself 16:9, so
+     nothing is letterboxed and the mask below lands on the film's true edges. */
+  object-fit: contain;
+  object-position: 50% 50%;
+  /* `left` is in the list because the split shell moves it when --left changes: transitioned
+     width but not position, the film eased its size while teleporting sideways, and at the
+     table stops it stepped partly off the viewport edge for a frame. */
+  transition: height .55s cubic-bezier(.3,.7,.3,1),
+              width .55s cubic-bezier(.3,.7,.3,1),
+              left .55s cubic-bezier(.3,.7,.3,1);
+  z-index: 2;
+  pointer-events: none;
+  /* All four edges dissolve into the page. The studio tone drifts between stops (#f7f4f9
+     to #d6d7da measured), so a feather beats colour-matching: whatever grey a frame ends
+     on, no rectangle edge is visible.
+
+     The numbers are measured against the frames: the tightest side margin is the umbrella
+     globe at 13.4 percent in, so 76px clears it; the dome reaches 1.8 percent from the
+     top at the opening stop, so the top ramp has to stay under 26px; 64px at the bottom
+     dissolves the contact shadows but leaves the globe bases solid, which is what sells
+     them as standing on the floor.
+
+     Those px values are CLAMPED against the film's own box, because the film is not one
+     size: fitFilm gives each stop its own, anywhere from 22vh to 74vh, and the split shell
+     scales it a further 1.14x. At the small end a flat 64px bottom ramp was swallowing over
+     a third of the frame. The clamps hold the measured values wherever there is room and
+     shrink proportionally where there is not.
+
+     Widened once the page floor started tracking the film (see --bg-base). The two work
+     together: the ground removes most of the step, and a longer feather puts whatever is
+     left inside a gradient instead of on an edge, where a two-level difference is invisible
+     rather than a visible rectangle. */
+  --ramp-t: clamp(26px, calc(var(--film-h) * 0.095), 44px);
+  --ramp-b: clamp(34px, calc(var(--film-h) * 0.125), 92px);
+  --ramp-x: clamp(64px, calc(var(--film-w) * 0.14), 150px);
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent 0, #000 var(--ramp-t), #000 calc(100% - var(--ramp-b)), transparent 100%),
+    linear-gradient(to right, transparent 0, #000 var(--ramp-x), #000 calc(100% - var(--ramp-x)), transparent 100%);
+  -webkit-mask-composite: source-in;
+  -webkit-mask-repeat: no-repeat;
+  mask-image:
+    linear-gradient(to bottom, transparent 0, #000 var(--ramp-t), #000 calc(100% - var(--ramp-b)), transparent 100%),
+    linear-gradient(to right, transparent 0, #000 var(--ramp-x), #000 calc(100% - var(--ramp-x)), transparent 100%);
+  mask-composite: intersect;
+  mask-repeat: no-repeat;
+}
+
+/* The decoder gave up. Retire the element outright rather than leave a dead poster sitting
+   over the computed-camera fallback that has just taken its place. */
+.fw-video-dead .fw-video { display: none; }
+.fw-has-video .fw-hero,
+.fw-has-video .fw-sky { display: none; }
+/* paintCopy stops updating the floating tiles once the film decodes, but nothing was ever
+   hiding them: any config carrying both `still` and `video` would freeze every globe at its
+   last computed opacity, stacked centre-screen on top of the film. */
+.fw-has-video .fw-tile { display: none; }
+
+/* Both retired by the light treatment: they existed to rescue white text off a bright
+   backdrop, and nothing is layered over anything any more. Kept as nodes so the engine can
+   go on writing opacity to them without a null check. */
+.fw-veil, .fw-scrim { display: none; }
+
+.fw-tile {
+  z-index: 4;
+  position: absolute;
+  left: 50%; top: calc(var(--film-h) * 0.5);
+  height: min(44vh, 360px);
+  width: auto;
+  transform: translate3d(-50%, -50%, 0);
+  filter: drop-shadow(0 22px 40px rgba(14, 16, 41, 0.22));
+  will-change: transform, opacity;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* The stop announcer. A live region has to be in the accessibility tree and out of the
+   visual one, and display:none or visibility:hidden would take it out of both. */
+.fw-sr {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Inline vendor marks carry no width/height attributes, so without a rule they fall back to
+   the SVG default of 300x150 and blow the layout apart. This is the floor that stops that
+   happening no matter which sheet matched.
+
+   Written as a bare `svg` under the mark wrappers rather than one selector per block. The
+   list form has now failed twice - each new block that prints a vendor mark was a new
+   selector somebody had to remember, and both times the symptom was a 300px logo wedged
+   through a table. Anything that mounts a mark inherits the floor. */
+.fw-col-model svg,
+.fw-case-model svg,
+.fw-bar-name svg,
+.fw-m-sysin svg { width: 1em; height: 1em; flex: none; display: block; }
+/* The vendors' real marks. Same 1em floor as the drawn ones they replaced, and the same
+   reason: an <img> with no width in a table cell takes its intrinsic size. */
+.fw-vmark { width: 1em; height: 1em; flex: none; display: block; object-fit: contain; }
+.fw-col-mk .fw-vmark, .fw-open-nm .fw-vmark { width: 14px; height: 14px; }
+
+/* --------------------------------------------------------------- autoplay */
+
+.fw-auto {
+  position: absolute;
+  left: clamp(16px, 3vw, 34px);
+  bottom: clamp(16px, 3vh, 30px);
+  z-index: 9;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color .18s, border-color .18s, background .18s;
+}
+.fw-auto:hover { color: var(--ink); border-color: rgba(14, 16, 41, .3); background: #fff; }
+.fw-auto:focus-visible { outline: 2px solid var(--magenta); outline-offset: 3px; }
+.fw-auto.is-on { color: var(--ink); border-color: var(--magenta); }
+
+/* A triangle that becomes two bars, drawn in borders so there is no icon font and no SVG
+   to keep in sync with the palette. */
+.fw-auto-icon {
+  width: 0; height: 0;
+  border-style: solid;
+  border-width: 5px 0 5px 8px;
+  border-color: transparent transparent transparent currentColor;
+  transition: border-width .18s, width .18s, height .18s;
+}
+.fw-auto.is-on .fw-auto-icon {
+  width: 8px; height: 10px;
+  border-width: 0 0 0 8px;
+  border-left-color: currentColor;
+  box-shadow: inset 3px 0 0 rgba(255, 255, 255, .001);
+  background:
+    linear-gradient(currentColor, currentColor) left / 3px 100% no-repeat,
+    linear-gradient(currentColor, currentColor) right / 3px 100% no-repeat;
+  border-left-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fw-auto-icon { transition: none; }
+}
+
+/* ------------------------------------------------------------- world index */
+
+/* The six worlds, always present. Vertical on the right, where the stacked shell leaves a
+   clear margin: the film is a centred 16:9 box and the copy is bound to its width, so this
+   column never has to fight either of them. */
+.fw-globes {
+  position: absolute;
+  right: clamp(10px, 1.6vw, 26px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2px, 0.8vh, 10px);
+}
+
+.fw-globe {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  cursor: pointer;
+  font: inherit;
+  transition: transform .3s;
+}
+/* Dimmed and desaturated until the flight reaches it. Greyed-out reads as "not yet", which
+   is exactly the state, and it keeps the lit pair unmistakable.
+
+   The fade is on the CHILDREN, never on the button. `opacity` composites the element's own
+   outline too, so with .55 on the button the focus ring computed to 2.6:1 against the page -
+   under the 3:1 that WCAG 2.2 SC 1.4.11 requires of a non-text indicator. */
+.fw-globe img { opacity: 1; filter: none; transition: opacity .3s, filter .3s; }
+/* .82, not .5. At .5 this measured 2.08:1 - less than half the AA minimum - on the page's
+   only wayfinding for the six worlds. */
+.fw-globe .fw-globe-label { opacity: 1; transition: opacity .3s, color .3s; }
+.fw-globe img {
+  width: clamp(30px, 3.4vw, 52px);
+  height: auto;
+  display: block;
+}
+/* Named all the way down, not only on hover. The strip is the page's answer to "six
+   worlds", and an unlabelled thumbnail of a snow globe does not say Insurance. */
+.fw-globe-label {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.fw-globe:hover img { opacity: 1; filter: saturate(1.1); }
+.fw-globe:hover .fw-globe-label { opacity: 1; filter: none; }
+.fw-globe.is-on { transform: scale(1.14); }
+.fw-globe.is-on img { opacity: 1; filter: none; }
+.fw-globe.is-on .fw-globe-label { opacity: 1; filter: none; color: var(--ink); }
+.fw-globe:focus-visible { outline: 2px solid var(--magenta); outline-offset: 2px; border-radius: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fw-globe, .fw-globe img, .fw-globe .fw-globe-label { transition: none; }
+}
+
+/* -------------------------------------------------------------------- copy */
+
+/* Below the film, never over it. This is the whole fix for the overlap: the two own
+   separate bands of the viewport and cannot collide at any scroll position. */
+.fw-copy {
+  position: absolute;
+  left: 50%;
+  top: var(--film-h);
+  bottom: 0;
+  transform: translateX(-50%);
+  /* Bound to the film's width so the two share an outer edge - the page gets a spine,
+     and the pair columns drop from a 79-character measure to about 51.
+     FLOORED at 680px, and that floor is load-bearing rather than cosmetic. Without it the
+     two sizes chase each other: a tall panel shrinks the film, the narrower film narrows
+     this band, the narrower band rewraps the panel taller, and fitFilm's three passes
+     converge on a degenerate state - measured at 1920 wide, the results panel reached
+     1425px and drove the film down to its 22vh floor. The floor breaks the loop. */
+  width: min(calc(var(--vw) - clamp(32px, 8vw, 140px)), max(var(--film-w), 680px));
+  z-index: 6;
+  display: grid;
+  align-items: start;
+  padding: clamp(16px, 2.6vh, 28px) 0 clamp(14px, 2vh, 24px);
+  /* At high zoom the band can still lose the race. Scrolling it is a far better
+     failure than the stage silently clipping the primary CTA. */
+  overflow-y: auto;
+  /* Chaining, not containment. If this band ever does overflow, containment stops the
+     leftover wheel reaching the page, so the flight freezes and the wheel reads as broken.
+     Chaining degrades instead: the band takes its slack, then the page carries on. */
+  overscroll-behavior: auto;
+  overflow-x: hidden;
+  /* No visible bar. This is a safety net for the rare overflow, not a scroller anyone is
+     meant to drive, and a 15px gutter reserved for 6px of overflow reads as a second
+     scrollbar on a page whose whole mechanic is the page's own. */
+  scrollbar-width: none;
+  /* The panels inside decide their own layout from THIS width, not the viewport's. On the
+     split shell the band is roughly half the window, so a viewport media query is the wrong
+     instrument: it would set a two-column results panel inside a 615px column. */
+  container-type: inline-size;
+}
+.fw-copy::-webkit-scrollbar { width: 0; height: 0; }
+
+.fw-panel {
+  grid-area: 1 / 1;
+  align-self: start;
+  width: 100%;
+  will-change: transform, opacity;
+}
+
+/* Opening and closing statements are centred and narrow; the pair stops are not, because
+   two columns under two globes want the full band. */
+.fw-panel-hero {
+  text-align: center;
+  justify-self: center;
+  max-width: 780px;
+}
+/* The opening statement is a lede, not body copy: set a step larger and on a wider measure.
+   At the shared 52ch it broke into six short centred lines, which is the one place ragged
+   symmetry looks like an accident rather than a choice. */
+.fw-panel-hero .fw-body {
+  margin-inline: auto;
+  font-size: 16.5px;
+  line-height: 1.52;
+  max-width: min(68ch, 100%);
+  color: var(--ink-soft);
+  text-wrap: pretty;
+}
+.fw-panel-hero .fw-tags,
+.fw-panel-hero .fw-cta { justify-content: center; }
+
+.fw-eyebrow {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.fw-title {
+  margin: 0 0 10px;
+  font-size: var(--t-display);
+  line-height: 1.06;
+  letter-spacing: -0.024em;
+  font-weight: 700;
+  text-wrap: balance;
+  color: var(--ink);
+}
+.fw-body {
+  margin: 0;
+  font-size: var(--t-body);
+  line-height: 1.58;
+  color: var(--ink-soft);
+  max-width: 52ch;
+}
+.fw-note {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-dim);
+  border-left: 2px solid var(--line);
+  padding-left: 11px;
+  max-width: 46ch;
+}
+
+/* ------------------------------------------------------------- paired copy */
+
+.fw-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(20px, 3vw, 44px);
+  margin-top: 13px;
+}
+.fw-col-eyebrow {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 7px;
+}
+.fw-col-title {
+  margin: 0 0 6px;
+  font-size: var(--t-lead);
+  line-height: 1.22;
+  letter-spacing: -0.012em;
+  font-weight: 600;
+  text-wrap: balance;
+  color: var(--ink);
+}
+.fw-col-model {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 3px 9px 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--ink-soft);
+  background: rgba(255, 255, 255, 0.55);
+  font-variant-numeric: tabular-nums;
+}
+.fw-col-model svg { width: 12px; height: 12px; flex: none; }
+/* A column with no run says so in the same slot, rather than leaving a gap that would read
+   as an oversight. Dashed mark, dimmed, so it cannot be mistaken for a result. */
+.fw-col-model.is-none { color: var(--ink-dim); border-style: dashed; background: none; }
+
+/* The leading system and the figure it leads on, on one line. Naming a model without the
+   number it earned is exactly the loose framing this page exists to correct, so the two
+   are bound into a single row that cannot be set without both. */
+.fw-col-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 0 0 9px;
+}
+.fw-col-line .fw-col-model { margin: 0; }
+.fw-col-stat { display: flex; align-items: baseline; gap: 5px; }
+.fw-col-stat strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.fw-col-stat span {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.fw-col-body {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  /* Measured at 1920 this column ran to 84 characters a line with no cap at all, against
+     the 45-75 that reads comfortably. The cap binds only on wide screens. */
+  max-width: 62ch;
+}
+
+/* ------------------------------------------------------------------- cases */
+
+/* The grid holds runs from one world only, so it has to say which - otherwise six
+   Pathfinding walks sit under a heading naming two worlds and read as evidence for both. */
+.fw-cases-label {
+  margin: 16px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.fw-cases-label + .fw-cases { margin-top: 8px; }
+
+.fw-cases {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.fw-case {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 11px 12px 12px;
+  background: rgba(255, 255, 255, 0.62);
+  /* Every card is in the DOM from the start and revealed by step, so nothing loads or
+     reflows mid-scroll and the grid never jumps. */
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .45s, transform .45s;
+  grid-column: span 1;
+  min-width: 0;
+}
+/* A pass card carries a magenta edge, a fail card a grey one. The colour is doing the same
+   job as the word next to it, never on its own. */
+.fw-case.is-ok  { border-left: 3px solid var(--magenta); }
+.fw-case.is-bad { border-left: 3px solid var(--ink-dim); }
+
+/* Step 0 - the base case alone, full width. It is the control, and it should be read before
+   anything is compared to it. */
+[data-step="0"] .fw-case.is-ok[data-at="0"] { opacity: 1; transform: none; grid-column: span 3; }
+/* Step 1 - it contracts to a third and the roadblocked run arrives beside it. */
+[data-step="1"] .fw-case.is-ok[data-at="0"],
+[data-step="1"] .fw-case.is-ok[data-at="1"] { opacity: 1; transform: none; }
+/* Step 2 - all three conditions, still only the runs that worked. */
+[data-step="2"] .fw-case.is-ok[data-at="0"],
+[data-step="2"] .fw-case.is-ok[data-at="1"],
+[data-step="2"] .fw-case.is-ok[data-at="2"] { opacity: 1; transform: none; }
+/* Step 3 - the failures drop in underneath, so each column is the same job done both ways. */
+[data-step="3"] .fw-case { opacity: 1; transform: none; }
+
+.fw-case-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  margin-bottom: 7px;
+}
+.fw-case-cond {
+  font-size: 14px; font-weight: 700; letter-spacing: -0.005em; color: var(--ink);
+}
+.fw-case-verdict {
+  font-size: 14px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-dim); white-space: nowrap;
+}
+.fw-case.is-ok .fw-case-verdict { color: var(--magenta); }
+
+.fw-case-model {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 14px; font-weight: 600; color: var(--ink-soft);
+  margin-bottom: 9px;
+}
+.fw-case-model svg { width: 11px; height: 11px; flex: none; }
+
+/* A fixed two-up grid, not a wrapping flex row. Wrapping meant the second figure sat beside
+   the first on one card and under it on the next, purely on label length, so three cards
+   meant to be read against each other had their numbers on three different baselines. */
+.fw-case-nums { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+.fw-case-num { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fw-case-num strong {
+  font-size: 15px; font-weight: 700; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.fw-case-num span {
+  font-size: 14px; letter-spacing: .03em; text-transform: uppercase; color: var(--ink-dim);
+  line-height: 1.25;
+}
+
+/* The mechanism, in the paper's own words, under the numbers it explains. Figure 6 states
+   the mechanism beneath each failing excerpt for the same reason: a block count on its own
+   says a run was bad, not what went wrong in it. */
+.fw-case-note {
+  margin: 9px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  line-height: 1.42;
+  color: var(--ink-dim);
+}
+
+/* Dark shells reuse the whole grid, only the surfaces change. */
+:is(.fw-shell-theatre, .fw-shell-canvas) .fw-case {
+  background: rgba(246, 241, 249, 0.05);
+  border-color: rgba(246, 241, 249, 0.16);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fw-case { transition: none; }
+}
+
+/* ----------------------------------------------------------------- metrics */
+
+/* Four columns is the fewest that still shows a different system winning each one, which
+   is the paper's headline and the reason no composite is ever formed. Bold marks the best
+   in a column and is computed from the values, so it cannot end up on the wrong row. */
+/* Prose left, table right. The hero panel is centred everywhere else on the page; here it
+   is not, because a right-aligned numeric column under a centred paragraph reads as two
+   unrelated objects. Both halves go left-aligned and share a baseline. */
+.fw-panel-metrics {
+  text-align: left;
+  max-width: none;
+  justify-self: stretch;
+}
+/* Side by side only where the prose still gets a readable measure. Below this the table
+   goes back under the paragraph, which is taller but never cramped. */
+@container (min-width: 660px) {
+  .fw-panel-metrics {
+    display: grid;
+    /* max-content, not a fraction: the numeric cells are nowrap, so a fractional track that
+       lands narrower than the table's natural width does not compress it, it lets it spill -
+       which is how the caption ended up cut mid-word at the column edge. */
+    grid-template-columns: minmax(0, 1fr) max-content;
+    gap: clamp(22px, 3vw, 44px);
+    align-items: start;
+  }
+  .fw-panel-metrics .fw-metrics { margin-top: 4px; }
+}
+.fw-panel-metrics .fw-body { margin-inline: 0; max-width: 46ch; }
+/* The prose column is roughly half a hero panel, so the display size that balances a
+   full-width statement sets four-word lines here. */
+.fw-panel-metrics .fw-title { font-size: clamp(23px, 1.9vw, 30px); }
+.fw-panel-metrics .fw-tags,
+.fw-panel-metrics .fw-cta { justify-content: flex-start; }
+.fw-panel-metrics .fw-metrics { margin-top: 4px; }
+
+.fw-metrics {
+  width: 100%;
+  margin-top: 15px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+.fw-metrics caption {
+  caption-side: bottom;
+  margin-top: 9px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink-dim);
+  text-align: left;
+}
+.fw-metrics th,
+.fw-metrics td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  white-space: nowrap;
+}
+.fw-metrics thead th {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  border-bottom-color: rgba(14, 16, 41, 0.28);
+}
+.fw-metrics tbody tr:last-child th,
+.fw-metrics tbody tr:last-child td { border-bottom: 0; }
+.fw-metrics .fw-m-sys {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.fw-metrics .fw-m-sysin {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fw-metrics td { color: var(--ink-soft); }
+.fw-metrics td.is-best { color: var(--ink); font-weight: 700; }
+
+:is(.fw-shell-theatre, .fw-shell-canvas) .fw-metrics thead th {
+  border-bottom-color: rgba(246, 241, 249, 0.32);
+}
+/* -------------------------------------------------------------- tags / cta */
+
+.fw-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+.fw-cases-label + .fw-tags { margin-top: 8px; }
+.fw-tag {
+  font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.02em;
+  color: var(--ink-soft);
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.66);
+}
+/* A tag the note qualifies. Marked by a leading rule and the accent, never by colour alone -
+   the note names the same two by name. */
+.fw-tag.is-marked {
+  color: var(--ink);
+  border-color: rgba(184, 18, 90, 0.42);
+  box-shadow: inset 3px 0 0 var(--magenta);
+  padding-left: 13px;
+}
+/* A run of eleven names is a list, not a row of buttons: set tighter so it reads as one
+   object rather than eleven. */
+.fw-tags.is-labelled { gap: 6px; }
+.fw-tags.is-labelled .fw-tag { font-size: 14px; padding: 4px 10px; }
+.fw-tags.is-labelled .fw-tag.is-marked { padding-left: 12px; }
+.fw-cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+.fw-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: var(--t-ctrl); font-weight: 600;
+  text-decoration: none;
+  color: var(--ink);
+  padding: 10px 17px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.82);
+  transition: transform .16s, border-color .16s, background .16s;
+}
+.fw-btn:hover { transform: translateY(-1px); border-color: rgba(14, 16, 41, .3); background: #fff; }
+.fw-btn-primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+}
+.fw-btn-primary:hover { filter: brightness(1.1); }
+.fw-btn:focus-visible { outline: 2px solid var(--magenta); outline-offset: 3px; }
+
+/* -------------------------------------------------------------------- rail */
+
+.fw-rail[hidden] { display: none !important; }
+.fw-rail {
+  position: absolute;
+  left: clamp(16px, 3vw, 34px);
+  /* never allowed to reach the copy column */
+  max-width: calc(50% - var(--film-w) / 2 - 24px);
+  top: calc(var(--film-h) + clamp(16px, 2.6vh, 28px));
+  display: flex; flex-direction: column; gap: 2px;
+  z-index: 8;
+}
+.fw-dot {
+  display: flex; align-items: center; gap: 10px;
+  background: none; border: 0; cursor: pointer;
+  padding: 6px 0;
+  font: inherit;
+  color: var(--ink-dim);
+  transition: color .2s;
+}
+.fw-dot-mark {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: currentColor;
+  opacity: .8;
+  transition: transform .22s, opacity .22s, background .22s;
+}
+.fw-dot-label {
+  font-size: var(--t-micro); font-weight: 600; letter-spacing: .04em;
+  opacity: .5;
+  transition: opacity .22s;
+  white-space: nowrap;
+}
+.fw-dot:hover { color: var(--ink-soft); }
+.fw-dot:hover .fw-dot-label { opacity: .85; }
+.fw-dot.is-on { color: var(--ink); }
+.fw-dot.is-on .fw-dot-mark { background: var(--magenta); opacity: 1; transform: scale(1.5); }
+.fw-dot.is-on .fw-dot-label { opacity: 1; }
+.fw-dot:focus-visible { outline: 2px solid var(--magenta); outline-offset: 2px; border-radius: 6px; }
+
+/* Under the film, on its axis. Hung off the right edge it landed on top of the globe index -
+   which is also right-anchored - and printed "FLY IN" across the Travel globe and its label
+   on the one frame every reader sees first. */
+.fw-hint {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  top: calc(var(--film-h) - 46px);
+  font-size: var(--t-micro); font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-dim);
+  transition: opacity .4s;
+  z-index: 8;
+  pointer-events: none;
+}
+.fw-hint::after {
+  content: ""; display: block; margin: 8px auto 0;
+  width: 1px; height: 20px;
+  background: linear-gradient(to bottom, var(--ink-dim), transparent);
+}
+
+.fw-spacer { position: relative; z-index: 0; }
+
+/* ------------------------------------------------------------------ mobile */
+
+@media (max-width: 900px) {
+  :root { --film: min(46vh, calc(100vh - 300px)); }
+  /* On a phone the copy is the full width of the window, so the index cannot stay in a side
+     margin that no longer exists - at 430px it sat at z-index 8 directly over the copy's
+     right-hand words. Index and rail share one strip between the film and the copy instead,
+     and the copy starts below it. */
+  .fw-copy {
+    width: calc(var(--vw) - 30px);
+    top: calc(var(--film-h) + 38px);
+    align-items: start;
+    padding-top: 10px;
+  }
+  .fw-panel { align-self: start; }
+  .fw-title { font-size: clamp(23px, 6.4vw, 30px); }
+  .fw-pair { grid-template-columns: 1fr; gap: 14px; margin-top: 12px; }
+  .fw-pair .fw-col + .fw-col { border-top: 1px solid var(--line); padding-top: 13px; }
+  .fw-globes {
+    left: auto; right: 10px;
+    top: calc(var(--film-h) + 4px);
+    transform: none;
+    flex-direction: row;
+    gap: 5px;
+  }
+  .fw-globe { padding: 0; }
+  .fw-globe img { width: clamp(24px, 6.6vw, 32px); }
+  .fw-globe-label { display: none; }
+  .fw-rail[hidden] { display: none !important; }
+.fw-rail { left: 10px; top: calc(var(--film-h) + 12px); flex-direction: row; gap: 8px; max-width: none; }
+  .fw-dot-label { display: none; }
+  .fw-hint { top: calc(var(--film-h) - 54px); }
+}
+
+/* Between the phone breakpoint and a wide desktop there is not enough left margin for a
+   labelled rail without it reaching the copy. Dots only, until there is room. */
+@media (min-width: 901px) and (max-width: 1340px) {
+  .fw-dot-label { display: none; }
+}
+
+/* ===========================================================================
+   The stage layers
+   ---------------------------------------------------------------------------
+   The left half is not always the film. A page about a paper opens on the paper,
+   and the six per-world results stops want the world's NAME, not another frame
+   of a flight that has already landed. Each layer occupies the same box and is
+   cross-faded by flight.js from the panels' own visibility, so a layer is never
+   up under copy that has gone.
+   ========================================================================= */
+
+/* A per-section still, in the film's box. */
+.fw-art {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  object-fit: contain;
+  /* The same feather the film gets. This tile is a rendered JPEG on a white ground, and
+     unmasked it reads as a white rectangle pasted onto the page rather than as a picture
+     standing on the same floor as everything else. */
+  --ramp-t: clamp(18px, 8%, 40px);
+  --ramp-b: clamp(22px, 11%, 70px);
+  --ramp-x: clamp(40px, 12%, 120px);
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent 0, #000 var(--ramp-t), #000 calc(100% - var(--ramp-b)), transparent 100%),
+    linear-gradient(to right, transparent 0, #000 var(--ramp-x), #000 calc(100% - var(--ramp-x)), transparent 100%);
+  -webkit-mask-composite: source-in;
+  -webkit-mask-repeat: no-repeat;
+  mask-image:
+    linear-gradient(to bottom, transparent 0, #000 var(--ramp-t), #000 calc(100% - var(--ramp-b)), transparent 100%),
+    linear-gradient(to right, transparent 0, #000 var(--ramp-x), #000 calc(100% - var(--ramp-x)), transparent 100%);
+  mask-composite: intersect;
+  mask-repeat: no-repeat;
+}
+.fw-art[hidden] { display: none; }
+.fw-foot {
+  margin: 12px 0 0;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  color: var(--ink-dim);
+}
+
+.fw-logo, .fw-mark {
+  position: absolute;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+}
+.fw-logo {
+  z-index: 2;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.fw-logo[hidden], .fw-mark[hidden] { display: none; }
+
+/* --logo-t travels 0 -> 1 across the opening leg, written by flight.js from the same band
+   geometry as the camera. At 0 the mark is small and sits with the title; at 1 it has grown
+   and taken the left half. One number, so the growth is scroll-driven rather than a
+   transition that would run at its own speed and arrive whenever it liked. */
+:root { --logo-t: 1; }
+
+.fw-logo {
+  /* Three things travel together on --logo-t, which is why they are written as one
+     interpolation each rather than as two keyframed states: at 0 the mark is small and sits
+     ABOVE the title, the way a paper's own front matter carries it; at 1 it has grown and
+     taken the left half. Anything in between is a real position, so the reader sees it
+     move rather than jump. */
+  --logo-sm: clamp(76px, 9vw, 116px);
+  --logo-lg: min(var(--left, 50vw) * 0.62, 46vh);
+  --logo-w: calc(var(--logo-sm) + (var(--logo-lg) - var(--logo-sm)) * var(--logo-t));
+  top: calc(15% + 35% * var(--logo-t));
+  left: calc(50% + (var(--left, 50vw) / 2 - 50%) * var(--logo-t));
+  width: var(--logo-w);
+  transform: translate(-50%, -50%);
+}
+.fw-logo-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  /* The dome is a knocked-out render on transparency, so it needs its own contact shadow
+     or it reads as pasted onto the page rather than standing on it. */
+  filter: drop-shadow(0 calc(var(--logo-w) * 0.045) calc(var(--logo-w) * 0.07) rgba(14, 16, 41, .17));
+}
+
+/* A NAME PLATE over the picture, the way a documentary titles a place: the film keeps
+   flying and the plate says which world you have arrived in. It used to be a full-height
+   panel that replaced the film, which is what froze the flight for six consecutive stops
+   and made the whole middle of the page read as a slide deck.
+   Anchored to the bottom of the film so it reads as a caption on the image rather than as
+   a floating heading, and z-index above the film for the same reason. */
+.fw-mark {
+  z-index: 3;
+  left: 0;
+  right: 0;
+  bottom: 8%;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 0 clamp(20px, 3vw, 48px);
+  text-align: left;
+}
+.fw-mark-globe { display: none; }         /* the film already shows the world */
+.fw-mark-name {
+  font-size: clamp(26px, 3.4vw, 46px);
+  font-weight: 700;
+  letter-spacing: -0.018em;
+  line-height: 1.04;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.fw-mark-name::before {
+  /* A short rule above the name, the width of the accent. It gives the plate a top edge to
+     sit against, which is what stops a heading floating over a pale film looking dropped in
+     rather than placed. */
+  content: "";
+  display: block;
+  width: 34px;
+  height: 3px;
+  margin-bottom: 9px;
+  border-radius: 2px;
+  background: var(--accent, var(--magenta));
+}
+.fw-mark-line {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 42ch;
+  text-wrap: pretty;
+}
+
+/* ===========================================================================
+   Front matter
+   ========================================================================= */
+
+.fw-abstract {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.fw-abstract-h {
+  margin: 0 0 7px;
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.fw-abstract-p {
+  margin: 0 0 9px;
+  font-size: 14.5px;
+  line-height: 1.62;
+  color: var(--ink-soft);
+  max-width: 68ch;
+  text-wrap: pretty;
+}
+.fw-abstract-p:last-child { margin-bottom: 0; }
+
+/* ===========================================================================
+   THE OPENING
+   ---------------------------------------------------------------------------
+   Three by three, the mark in the middle cell, one viewport tall, in normal flow.
+   It scrolls up and off with the reader - it does not fade, it does not translate,
+   and nothing inside it moves. The flight starts underneath it.
+   ========================================================================= */
+
+.fw-open {
+  position: relative;
+  z-index: 20;
+  background: var(--bg-base);
+  /* Exactly one viewport. `min-height` let the tiles push it to 1689px - nearly two
+     screens - so the reader met half a matrix and had to scroll to see the rest of what is
+     supposed to be one screen. The cells clip instead; each one is a summary and the page
+     below is where the detail lives. */
+  height: 100vh;
+  max-height: 100vh;
+  /* A grid of title-then-matrix, and overflow hidden.
+     As a centred flex column it overflowed BOTH ways when the tiles were taller than the
+     viewport, so the title was pushed off the top of the screen and the transparent middle
+     cell showed the fixed stage behind it - the film, not the mark. */
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  padding: clamp(70px, 8.5vh, 100px) clamp(16px, 2.4vw, 40px) clamp(16px, 2.6vh, 32px);
+}
+.fw-open-in { display: contents; }
+
+/* One word, two capitals, and a capital on the question. Set in the display size and in
+   the page's heaviest weight: at book weight this sat on a screen of bold tiles and looked
+   like a caption for them. */
+.fw-open-title {
+  margin: 0 0 clamp(10px, 1.6vh, 20px);
+  font-size: clamp(27px, 2.9vw, 50px);
+  font-weight: 800;
+  letter-spacing: -0.022em;
+  line-height: 1.1;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.fw-open-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* The middle row is the widest of the three because the mark lives in it, and a mark
+     letterboxed into a third of the height reads as a thumbnail rather than as the thing
+     the other eight tiles are about. */
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: clamp(8px, 0.9vw, 14px);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.fw-open-cell {
+  min-width: 0;
+  min-height: 0;
+  padding: clamp(10px, 1vw, 16px) clamp(11px, 1.1vw, 18px);
+  border-radius: 16px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* The mark, in the middle. No card around it: it is the object the other eight describe. */
+.fw-open-cell.is-mark {
+  background: none;
+  border: 0;
+  padding: 0;
+  position: relative;
+}
+/* Absolute, so the artwork can never decide the row's height. As a flex child with
+   width:100% it took its own square aspect and spilled two rows deep through the tiles
+   above and below it. */
+.fw-open-mark {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* EVERYTHING on this screen is set bold. Bold OR capitals, never both, so the labels are
+   the only thing in caps and they are the only thing that is not bold-and-cased. */
+.fw-open-lab {
+  font-size: clamp(14px, 0.72vw, 14.5px);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--grey);
+  margin-bottom: 7px;
+}
+.fw-open-text {
+  margin: 0;
+  font-size: clamp(14px, 0.88vw, 15.5px);
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text);
+  overflow: hidden;
+}
+.fw-open-cell:has(.fw-open-fig) .fw-open-i { display: inline-flex; margin-right: 14px; }
+.fw-open-i { display: flex; gap: 7px; font-size: clamp(14px, 0.85vw, 15.0px); line-height: 1.5; }
+.fw-open-i b { color: var(--ink); font-weight: 800; flex: none; }
+.fw-open-i span { color: var(--soft); font-weight: 600; min-width: 0; }
+.fw-open-chips { display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
+.fw-open-chip {
+  font-size: clamp(14px, 0.72vw, 14.5px);
+  font-weight: 700;
+  line-height: 1;
+  padding: 6px 10px;
+  border-radius: 100px;
+  background: var(--bg-base);
+  color: var(--text);
+}
+.fw-open-fig {
+  flex: 1 1 auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  margin-top: 6px;
+}
+.fw-open-worlds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 10px; }
+.fw-open-w { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.fw-open-wimg { width: clamp(22px, 2vw, 34px); height: auto; flex: none; }
+.fw-open-w span { font-size: clamp(14px, 0.85vw, 15.0px); font-weight: 700; color: var(--ink); }
+
+
+/* One colour per SYSTEM, not one per chart. A reader who learns the colour on the opening
+   plot then reads it on every bar, every tile and every table mark for the rest of the page,
+   which is the only way five systems across nine figures stay legible. Vibrant on purpose:
+   these have to survive a projector as well as a laptop. */
+:root {
+  --sys-vtf:  #E0107E;   /* Voice Think Fast */
+  --sys-o21:  #0FA36B;   /* GPT-Realtime-2.1 */
+  --sys-mini: #17C0F0;   /* GPT-Realtime-2.1-mini */
+  --sys-gem:  #6D5BF0;   /* Gemini-3.1-Flash-Live */
+  --sys-nova: #F08A0C;   /* Nova 2 Sonic */
+}
+
+/* The three pillar plots, in the bottom row. */
+.fw-open-cell.is-plot { justify-content: flex-start; }
+.fw-open-cols {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px; align-items: end; flex: 1 1 auto; min-height: 0;
+}
+.fw-open-cb { display: grid; grid-template-rows: auto auto 1fr; min-width: 0; height: 100%; }
+.fw-open-cv {
+  font-size: clamp(14px, 0.78vw, 14.5px); font-weight: 800; color: var(--ink);
+  font-variant-numeric: tabular-nums; text-align: center; margin-bottom: 3px;
+}
+.fw-open-bar {
+  /* Sleeker: a column, not a block. The bar is the system's own colour, so the plot is
+     read by hue as well as by height and the name row underneath stops being load-bearing. */
+  align-self: end; width: 58%; max-width: 42px; min-height: 3px;
+  margin: 0 auto;
+  border-radius: 5px 5px 2px 2px;
+  background: var(--sys, var(--tint));
+}
+.fw-open-names { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px;
+  /* Deep enough for a rotated 14px name. At the old height the labels were sheared off at
+     the tile's bottom edge, so four of five systems read as "...altime-2.1". */
+  height: clamp(58px, 7.2vh, 74px); margin-top: 6px; overflow: visible; }
+.fw-open-nc { position: relative; min-width: 0; }
+.fw-open-nm {
+  position: absolute; top: 4px; right: 4px;
+  display: flex; align-items: center; gap: 3px;
+  font-size: clamp(14px, 0.66vw, 14.5px); font-weight: 700; line-height: 1;
+  color: var(--soft); white-space: nowrap;
+  transform: rotate(-45deg); transform-origin: right top;
+}
+.fw-open-nm svg, .fw-open-nm .fw-vmark { width: 14px; height: 14px; flex: none; display: block; }
+/* The mark sits ON the column, above the value, where it is read with the bar rather than
+   in the rotated name row where it was 9px and effectively invisible. */
+.fw-open-mk { display: flex; justify-content: center; margin-bottom: 3px; }
+.fw-open-mk .fw-vmark, .fw-open-mk svg { width: 16px; height: 16px; display: block; }
+
+
+/* The section bar. Named, in the header, following the scroll. */
+.fw-nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(2px, 0.5vw, 10px);
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.fw-nav-item {
+  font: inherit;
+  font-size: var(--t-ctrl);
+  font-weight: 600;
+  color: var(--ink-dim);
+  background: none;
+  border: 0;
+  border-radius: 100px;
+  padding: 6px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .18s, background-color .18s;
+}
+.fw-nav-item:hover { color: var(--ink); }
+.fw-nav-item.is-on { color: var(--ink); background: rgba(14, 16, 41, .07); }
+.fw-nav-item:focus-visible { outline: 2px solid var(--magenta); outline-offset: 1px; }
+
+/* ===========================================================================
+   The opening summary
+   ---------------------------------------------------------------------------
+   One screen: what the work is, and the three numbers it claims. Set as soft
+   rectangular tiles because three plots and a block of prose on one screen need
+   edges to be read as four things rather than one crowded one.
+
+   No captions and no axis titles anywhere in here on purpose. The tile heading
+   is the metric, the bars carry their own values, and the prose beside them
+   already says what they mean.
+   ========================================================================= */
+
+/* The mark itself in the topbar. A magenta dot stood here, which is a decoration nobody
+   chose and which sat next to the words it was supposed to be the mark for. */
+.wordmark-logo {
+  width: 22px; height: 22px; flex: none;
+  object-fit: contain; object-position: center;
+  margin-right: 2px;
+  vertical-align: -5px;
+}
+
+/* THE KEYNOTE MATRIX. Three by three, the mark in the middle cell and eight tiles around
+   it - the abstract, the three pillar figures, the six worlds, the corpus, the eleven
+   conversation types and the reliability decay. One screen that says what the work is and
+   shows the evidence for the one sentence that matters.
+
+   The mark is the FILM's own first frame, not a second copy of the artwork, so nothing
+   changes size or position when the flight starts moving at the next stop. */
+.fw-sum {
+  margin-top: 6px;
+  display: grid;
+  /* Three columns in the right half. Two put the seven tiles on four rows and the block
+     ran 43px past the fold; three fits them on three - abstract across the top, the three
+     text tiles, then the three plots - which is both shorter and a cleaner read. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}
+.fw-sum > * { min-width: 0; }
+/* The centre cell is a window onto the film behind, not a tile: the film is painted by the
+   stage underneath and this is the hole it shows through. */
+.fw-sum-hole {
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  min-height: 0;
+}
+.fw-sum-mark { width: auto; max-width: 100%; max-height: 190px; object-fit: contain; display: block; }
+.fw-sum-hole span {
+  font-size: 14px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+/* Six worlds: the globe and the name. The paper explains each at length and this tile is
+   not the place to do it again. */
+.fw-tile-worlds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 10px; }
+.fw-tw { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.fw-tw-img { width: 26px; height: 26px; object-fit: contain; flex: none; }
+.fw-tw span { font-size: 14px; font-weight: 600; color: var(--ink); }
+
+/* Spread per conversation type. */
+.fw-spread { display: flex; flex-direction: column; gap: 3px; }
+.fw-sp-row { display: grid; grid-template-columns: 13ch 1fr; align-items: center; gap: 8px; }
+.fw-sp-n { font-size: 14px; color: var(--ink-dim); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.fw-sp-t { position: relative; height: 12px; }
+.fw-sp-t::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 50%;
+  height: 1px; background: rgba(14, 16, 41, .09);
+}
+.fw-sp-rng {
+  position: absolute; top: 50%; height: 3px; transform: translateY(-50%);
+  border-radius: 2px; background: rgba(14, 16, 41, .16);
+}
+.fw-sp-d {
+  --c0: var(--magd); --c1: var(--vio); --c2: #2a7f9e; --c3: #b87a2a; --c4: #6b7280;
+  position: absolute; top: 50%; width: 6px; height: 6px; border-radius: 50%;
+  transform: translate(-50%, -50%); background: var(--c0);
+}
+.fw-sp-d[style*="--i: 1"], .fw-sp-d[style*="--i:1"] { background: var(--c1); }
+.fw-sp-d[style*="--i: 2"], .fw-sp-d[style*="--i:2"] { background: var(--c2); }
+.fw-sp-d[style*="--i: 3"], .fw-sp-d[style*="--i:3"] { background: var(--c3); }
+.fw-sp-d[style*="--i: 4"], .fw-sp-d[style*="--i:4"] { background: var(--c4); }
+.fw-sum-abstract { grid-column: 1 / -1; }
+
+.fw-sum-abstract {
+  font-size: clamp(14px, 0.74vw, 14.5px);
+  line-height: 1.48;
+  color: var(--ink-soft);
+  text-wrap: pretty;
+  /* Two columns. At this size one column across the right half runs to about 130 characters
+     a line, roughly twice a readable measure, and the abstract is the longest single block
+     on the page. */
+  column-count: 2;
+  column-gap: 26px;
+  column-rule: 1px solid var(--line);
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .55);
+  border: 1px solid var(--line);
+}
+
+/* The three runs of the abstract that a plot is evidence for. Translucent, because the
+   point is to tie two things together, not to shout: a solid highlight on body text at
+   this size reads as an error state. */
+.fw-lnk {
+  border-radius: 4px;
+  /* The padding is pulled back out by the margin. Left in, it opened a visible gap on both
+     sides of each linked run and the sentence read as "( Pass@1: 0.490 ,  turn-taking...". */
+  padding: 1px 3px;
+  margin: 0 -3px;
+  cursor: default;
+  transition: background-color .16s, color .16s;
+}
+.fw-lnk.is-lit {
+  background: color-mix(in srgb, var(--lnk, var(--magenta)) 20%, transparent);
+  color: var(--ink);
+}
+.fw-lnk:focus-visible { outline: 2px solid var(--lnk, var(--magenta)); outline-offset: 1px; }
+.fw-lnk[data-link="pass"] { --lnk: var(--magd); }
+.fw-lnk[data-link="tt"]   { --lnk: var(--vio); }
+.fw-lnk[data-link="mos"]  { --lnk: var(--teal); }
+
+.fw-sum-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.fw-tile-plot {
+  margin: 0;
+  min-width: 0;
+  padding: 11px 12px 9px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .55);
+  border: 1px solid var(--line);
+  transition: background-color .16s, border-color .16s;
+}
+.fw-tile-plot.is-lit {
+  border-color: color-mix(in srgb, var(--tint) 45%, transparent);
+  background: color-mix(in srgb, var(--tint) 7%, rgba(255, 255, 255, .75));
+}
+.fw-tile-plot:focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; }
+.fw-tile-h {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 8px;
+}
+.fw-tile-plot.is-lit .fw-tile-h { color: var(--tint); }
+.fw-tile-plot.is-note { padding-bottom: 13px; }
+.fw-tile-big { font-size: 14px; line-height: 1.35; color: var(--ink); margin-bottom: 7px; }
+.fw-tile-i { display: flex; gap: 6px; font-size: 14px; line-height: 1.35; margin-top: 1px; }
+.fw-tile-i b { color: var(--ink); font-weight: 650; flex: none; }
+.fw-tile-i span { color: var(--ink-dim); min-width: 0; }
+.fw-tile-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.fw-chip {
+  font-size: 14px; line-height: 1; padding: 4px 7px; border-radius: 100px;
+  background: rgba(14, 16, 41, .055); color: var(--ink-soft);
+}
+
+/* Five columns, ordered by their own value. Each plot has a different leader, and that is
+   the finding - sorting them is what makes it visible without a caption saying so. */
+.fw-cols {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  height: clamp(56px, 7.6vh, 80px);
+}
+.fw-col-b {
+  display: grid;
+  /* value, then the track, then a fixed strip for the rotated name. The track has to be a
+     grid ROW with a definite size for the bar's percentage height to resolve against
+     anything: as a plain flex child it had no definite height and every bar came out 0. */
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  min-width: 0;
+}
+.fw-col-v {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  margin-bottom: 3px;
+}
+.fw-col-bar {
+  align-self: end;
+  width: 100%;
+  height: calc(var(--h) * var(--grow, 1));
+  min-height: 2px;
+  border-radius: 4px 4px 2px 2px;
+  background: color-mix(in srgb, var(--tint) 40%, #C9CBD9);
+  transition: background-color .16s;
+}
+/* The plot is drawn in one weight until it is the one being talked about. Colouring all
+   three at once would make the page a fruit salad and would say nothing. */
+.fw-tile-plot.is-lit .fw-col-bar { background: var(--tint); }
+
+/* The names hang below the plot on a 45 degree rake, anchored to each column's RIGHT edge
+   so each one runs down-left into the space under its neighbour instead of across it.
+   Flat they cannot be set: five names across a third of a column truncates
+   "GPT-Realtime-2.1" and "GPT-Realtime-2.1-mini" to the same label. */
+.fw-col-n {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  transform: rotate(-45deg);
+  transform-origin: right top;
+}
+.fw-tile-plot.is-lit .fw-col-n { color: var(--ink-soft); }
+.fw-col-mk { display: flex; }
+.fw-col-mk svg { width: 9px; height: 9px; flex: none; display: block; }
+/* The rake needs its own strip; the tile reserves it rather than letting the labels
+   overflow onto whatever is beneath. */
+.fw-names {
+  position: relative;
+  height: clamp(36px, 4.8vh, 48px);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 4px;
+}
+.fw-name-cell { position: relative; min-width: 0; }
+
+/* The worked example: five runs, and the three numbers they produce. */
+.fw-work { margin: 14px 0 0; }
+.fw-work-h {
+  font-size: 14px; font-weight: 700; letter-spacing: 0.085em; text-transform: uppercase;
+  color: var(--ink-dim); margin-bottom: 9px;
+}
+.fw-work-rows { display: flex; flex-direction: column; gap: 5px; }
+.fw-work-row { display: grid; grid-template-columns: 5.5ch 1fr 12ch; align-items: center; gap: 10px; }
+.fw-work-n { font-size: 14px; color: var(--ink-dim); }
+.fw-work-t { position: relative; height: 16px; border-radius: 4px; background: rgba(14, 16, 41, .05); }
+.fw-work-b { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: rgba(14, 16, 41, .22); }
+.fw-work-row.is-pass .fw-work-b { background: color-mix(in srgb, var(--teal) 55%, var(--tealln)); }
+.fw-work-row.is-fail .fw-work-b { background: color-mix(in srgb, var(--red) 42%, var(--redln)); }
+/* The optimum and the efficiency limit, drawn on every run so the two thresholds are the
+   same two lines every time rather than a sentence under the figure. */
+.fw-work-opt, .fw-work-lim { position: absolute; top: -2px; bottom: -2px; width: 0; }
+.fw-work-opt { border-left: 2px solid var(--ink); }
+.fw-work-lim { border-left: 2px dashed rgba(14, 16, 41, .45); }
+.fw-work-v {
+  font-size: 14px; color: var(--ink-soft); text-align: right;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.fw-work-key { margin-top: 8px; font-size: 14px; color: var(--ink-dim); }
+.fw-work-out {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px; margin-top: 12px;
+}
+.fw-work-cell {
+  padding: 10px 12px; border-radius: 12px;
+  background: rgba(255,255,255,.55); border: 1px solid var(--line);
+}
+.fw-work-cell b {
+  display: block; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-dim); font-weight: 700;
+}
+.fw-work-cell strong {
+  display: block; font-size: 21px; font-weight: 700; color: var(--ink);
+  font-variant-numeric: tabular-nums; line-height: 1.2;
+}
+.fw-work-cell span { font-size: 14px; color: var(--ink-dim); }
+
+/* ===========================================================================
+   Recorded runs
+   ---------------------------------------------------------------------------
+   Five tiles: two Pathfinding walks that play, and three enterprise calls that
+   loop the turns in which the thing the conversation type is named for actually
+   happens. Silent, as the rest of the page is.
+   ========================================================================= */
+
+.fw-runs {
+  display: grid;
+  /* Three then two, not five across. Five tiles in a half-width column is 135px each: the
+     maps come out as a cropped strip and a turn of dialogue becomes a one-word-per-line
+     ribbon. On six tracks, the first three span two each and the last two span three. */
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 9px;
+  margin-top: 14px;
+  height: clamp(300px, 54vh, 540px);
+}
+.fw-run:nth-child(-n+3) { grid-column: span 2; }
+.fw-run:nth-child(n+4)  { grid-column: span 3; }
+.fw-run {
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .58);
+}
+.fw-run.is-ok  { border-top: 3px solid var(--teal); }
+.fw-run.is-bad { border-top: 3px solid var(--red); }
+.fw-run[data-kind="map"] { cursor: pointer; transition: border-color .14s, transform .14s; }
+.fw-run[data-kind="map"]:hover { border-color: rgba(184, 18, 90, .45); transform: translateY(-1px); }
+.fw-run:focus-visible { outline: 2px solid var(--magenta); outline-offset: 2px; }
+.fw-run-head {
+  flex: 0 0 auto;
+  padding: 7px 9px 6px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.fw-run-type { font-size: 14px; font-weight: 650; color: var(--ink); }
+.fw-run-where {
+  font-size: 14px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-dim);
+}
+.fw-run-box { flex: 1 1 auto; min-height: 0; display: flex; position: relative; }
+.fw-run-box .wm-root { flex: 1 1 auto; min-width: 0; min-height: 0; }
+
+/* The turns. Two speakers, no avatars and no timestamps: the shape of the exchange is the
+   content and everything else is furniture. */
+.fw-turns {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  justify-content: flex-end;
+}
+.fw-turn {
+  font-size: 14px;
+  line-height: 1.38;
+  padding: 5px 7px;
+  border-radius: 9px;
+  max-width: 94%;
+  animation: fw-turn-in .28s ease-out both;
+  /* Some turns run three hundred words. Six lines is the most a tile this size can hold
+     without pushing its neighbours out of the loop, and the point of the excerpt is the
+     move, not the whole speech. */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.fw-turn b {
+  display: block;
+  font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase;
+  font-weight: 700; opacity: 1; margin-bottom: 2px;
+}
+.fw-turn.is-user  { background: rgba(14, 16, 41, .07); color: var(--ink-soft);
+  border-bottom-left-radius: 3px; align-self: flex-start; }
+.fw-turn.is-agent { background: color-mix(in srgb, var(--magenta) 13%, #fff); color: var(--ink);
+  border-bottom-right-radius: 3px; align-self: flex-end; }
+@keyframes fw-turn-in { from { opacity: 0; transform: translateY(6px); } }
+
+/* ===========================================================================
+   Grouped bars, and cards
+   ========================================================================= */
+
+.fw-grp { margin: 14px 0 0; }
+.fw-grp-label {
+  font-size: 14px; font-weight: 700; letter-spacing: 0.085em; text-transform: uppercase;
+  color: var(--ink-dim); margin-bottom: 9px;
+}
+.fw-grp-plot {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: clamp(6px, 1vw, 16px);
+  align-items: end;
+}
+.fw-grp-cluster { min-width: 0; }
+.fw-grp-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 96px;
+  padding-bottom: 1px;
+  border-bottom: 1px solid var(--line);
+}
+/* One hue per system, held across every cluster and every plot on the page. The whole
+   point of a grouped chart is that you can follow one system across the groups. */
+.fw-grp-bar, .fw-grp-sw {
+  --c0: var(--magd); --c1: var(--vio); --c2: #2a7f9e; --c3: #b87a2a; --c4: #6b7280;
+  background: var(--c0);
+}
+.fw-grp-bar { flex: 1 1 0; min-width: 0; height: calc(var(--h) * var(--grow, 1));
+  min-height: 1px; border-radius: 2px 2px 0 0; }
+.fw-grp-bar[style*="--i:1"], .fw-grp-sw[style*="--i:1"] { background: var(--c1); }
+.fw-grp-bar[style*="--i:2"], .fw-grp-sw[style*="--i:2"] { background: var(--c2); }
+.fw-grp-bar[style*="--i:3"], .fw-grp-sw[style*="--i:3"] { background: var(--c3); }
+.fw-grp-bar[style*="--i:4"], .fw-grp-sw[style*="--i:4"] { background: var(--c4); }
+.fw-grp-name {
+  margin-top: 7px;
+  font-size: 14px;
+  line-height: 1.15;
+  color: var(--ink-dim);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.fw-grp-key {
+  display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 11px;
+  font-size: 14px; color: var(--ink-dim);
+}
+.fw-grp-keyit { display: inline-flex; align-items: center; gap: 5px; }
+.fw-grp-sw { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+.fw-cards { display: grid; gap: 10px; margin-top: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fw-cards.is-c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fw-card {
+  min-width: 0;
+  padding: 12px 13px 13px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .55);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--tint, var(--line));
+}
+.fw-card-h {
+  margin: 0 0 4px;
+  font-size: 14px; font-weight: 700; letter-spacing: 0.055em; text-transform: uppercase;
+  color: var(--ink);
+}
+.fw-card-l { margin: 0 0 8px; font-size: 14px; line-height: 1.45; color: var(--ink-dim); }
+.fw-card-i { display: flex; gap: 6px; font-size: 14px; line-height: 1.45; margin-top: 3px; }
+.fw-card-i b { color: var(--ink); font-weight: 650; flex: none; min-width: 5.5ch; }
+.fw-card-i span { color: var(--ink-soft); }
+/* Two speakers, set the way a phone sets them. No avatars, no timestamps: the shape of the
+   exchange is the content, and anything else is furniture. */
+.fw-chat {
+  font-size: 14px; line-height: 1.4; padding: 5px 8px; border-radius: 10px;
+  margin-top: 5px; max-width: 92%;
+}
+.fw-chat.is-user { background: rgba(14, 16, 41, .07); color: var(--ink-soft);
+  border-bottom-left-radius: 3px; }
+.fw-chat.is-agent { background: color-mix(in srgb, var(--tint, var(--magenta)) 15%, #fff);
+  color: var(--ink); margin-left: auto; border-bottom-right-radius: 3px; }
+
+/* ===========================================================================
+   Bar chart
+   ---------------------------------------------------------------------------
+   Five rows of two divs. Every width is a number from Table 3 rather than a
+   scale somebody chose, and the interval is DRAWN as well as printed: 0.533
+   plus or minus 0.133 and 0.490 plus or minus 0.039 are different claims, and
+   a plain bar chart shows them as the same kind of thing.
+   ========================================================================= */
+
+.fw-bars { margin: 16px 0 0; }
+.fw-bars-label {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 10px;
+}
+.fw-bars-list { display: flex; flex-direction: column; gap: 7px; }
+
+.fw-bar-row {
+  position: relative;
+  display: grid;
+  /* 19ch, not 15: "Gemini-3.1-Flash-Live" and "GPT-Realtime-2.1-mini" both truncated at 15,
+     and a chart whose longest label is an ellipsis is a chart you have to hover to read. */
+  grid-template-columns: minmax(0, 19ch) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 3px 4px;
+  border-radius: 8px;
+  cursor: default;
+}
+.fw-bar-row:hover, .fw-bar-row:focus-visible { background: rgba(255, 255, 255, .55); }
+.fw-bar-row:focus-visible { outline: 2px solid var(--magenta); outline-offset: 1px; }
+
+.fw-bar-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.fw-bar-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.fw-bar-track {
+  position: relative;
+  height: 20px;
+  border-radius: 5px;
+  background: rgba(14, 16, 41, .07);
+  overflow: visible;
+}
+.fw-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--w);
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--sys, var(--accent)),
+              color-mix(in oklab, var(--sys, var(--accent)) 74%, #000 6%));
+}
+/* A real zero. Nova 2 Sonic scores 0.000 in Pathfinding, and an empty track beside the
+   number reads as a chart that failed to draw rather than as a result. A 3px stub at the
+   origin says the row was measured and the answer was none. */
+.fw-bar-row.is-zero .fw-bar-fill { width: 3px; border-radius: 2px; background: var(--ink-dim); }
+/* The bars grow WITH THE SCROLL, from --grow, which is the panel's own visibility written
+   every frame by paintCopy. Two earlier versions were wrong in the same way: pinned to zero
+   until the panel got `is-live` (written only inside d < 0.5) and then released on a 0.7s
+   wall-clock transition. That left a fully legible chart on screen with five zero-length
+   bars and their whiskers floating over nothing for up to 0.62 viewport heights, and then
+   animated it on a clock the reader does not control - at reading speed the bars were still
+   filling 1,050px after they started, with the panel already fading out. Driven by --grow
+   they are simply part of the same motion as everything else. */
+.fw-bar-fill { width: calc(var(--w) * var(--grow, 1)); }
+
+/* The 95% bootstrap interval, drawn over the bar. A capped whisker rather than a shaded
+   band: the band reads as more bar, which is the opposite of what it means. */
+/* The interval crosses its own bar, so it has to be legible on BOTH grounds. Drawn in ink
+   it measured 1.85:1 against the magenta fill and 1.61:1 for the connector, so the lower
+   half of every whisker vanished into the bar and the upper half did not - which reads as
+   an interval that starts at the bar's end, the exact opposite of what it means. White with
+   a dark drop shadow holds on the fill and on the track alike. */
+.fw-bar-ci {
+  position: absolute;
+  top: 50%;
+  height: 10px;
+  transform: translateY(-50%);
+  border-left: 2px solid rgba(255, 255, 255, .96);
+  border-right: 2px solid rgba(255, 255, 255, .96);
+  filter: drop-shadow(0 0 1px rgba(14, 16, 41, .75));
+  pointer-events: none;
+}
+.fw-bar-ci::before {
+  content: "";
+  position: absolute;
+  top: 50%; left: 0; right: 0;
+  height: 2px;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, .9);
+}
+
+.fw-bar-val {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+  min-width: 8.5ch;
+  justify-content: flex-end;
+}
+.fw-bar-val strong { font-size: 14.5px; font-weight: 700; color: var(--ink); }
+/* 0.86em, not a fixed 11px. Fixed, it did not follow the table's own size steps, so at the
+   widths where the value dropped to 10.5px the UNCERTAINTY was set larger than the estimate
+   it qualifies. */
+.fw-pm { font-size: 0.86em; color: var(--ink-dim); font-style: normal; font-variant-numeric: tabular-nums; }
+
+.fw-bar-tip {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 16ch;
+  z-index: 9;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.4;
+  max-width: 34ch;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .14s;
+}
+.fw-bar-row:hover .fw-bar-tip, .fw-bar-row:focus-visible .fw-bar-tip { opacity: 1; }
+
+/* The axis is laid out on the SAME grid as the rows rather than being pushed across with a
+   margin. The margin was `calc(19ch + 12px)` at 10.5px while the name column is 19ch at
+   12.5px: `ch` resolves against whatever font the element is in, so 19ch meant 103px here
+   and 174px there, and the axis sat 64px left of the bar origin it was meant to label. */
+.fw-bars-axis {
+  display: grid;
+  grid-template-columns: minmax(0, 19ch) 1fr auto;
+  gap: 12px;
+  margin: 5px 0 0;
+  padding: 3px 4px 0;
+  font-size: 14px;                 /* so the 19ch above matches the row's 19ch */
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.fw-bars-axis .fw-axis-ticks {
+  grid-column: 2;
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+/* The end labels centre on their tick rather than butting the ends of the track. */
+.fw-bars-axis .fw-axis-ticks > span:first-child { transform: translateX(-50%); }
+.fw-bars-axis .fw-axis-ticks > span:last-child { transform: translateX(50%); }
+.fw-bars-note {
+  margin: 9px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+  max-width: 74ch;
+}
+
+/* ===========================================================================
+   The pillar table
+   ---------------------------------------------------------------------------
+   Table 3 as the paper prints it: three pillars over eleven metrics, every cell
+   with its own 95% half-width. The half-widths are why this is worth the width
+   it costs - without them the Pathfinding block reads as five separated systems
+   when three of its intervals overlap.
+   ========================================================================= */
+
+.fw-pillars-wrap {
+  margin-top: 14px;
+  /* Its own scroller. Eleven columns will not fit a phone at any type size worth reading,
+     and a table that widens the BODY makes the whole page scroll sideways.
+
+     `max-width` and the `min-width: 0` below are what make that true. Without them the
+     panel is a flex item sized to its content, so the table pushed the PANEL wider than
+     the column and `.fw-copy`'s overflow-x: hidden quietly cut it off: measured at
+     1560x900 the suite table ended at FAI and three columns of Naturalness were gone,
+     with no scrollbar and nothing to say they existed. */
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  /* Its OWN container, so the size queries below measure the width the table actually has
+     rather than the width of the copy column. They are not the same number: at a world stop
+     the table shares its column with a bar chart and gets about 60% of it, so keyed to the
+     column the type never stepped down and three pillars ran off the edge. */
+  container-type: inline-size;
+  container-name: pillars;
+  /* When it does have to scroll, say so. A table that is silently clipped reads as a table
+     with eight columns. */
+  /* `transparent`, not a hard-coded rgba of the base ground: --bg is sampled from the film
+     and runs from rgb(229,230,229) to rgb(251,250,249) across the flight, so fading to a
+     fixed 232,233,231 painted a grey smudge down both edges of the table at the light
+     stops. */
+  background:
+    linear-gradient(to right, var(--bg) 30%, transparent) left / 26px 100% no-repeat,
+    linear-gradient(to left, var(--bg) 30%, transparent) right / 26px 100% no-repeat,
+    radial-gradient(farthest-side at 0 50%, rgba(14, 16, 41, .13), transparent) left / 12px 100% no-repeat,
+    radial-gradient(farthest-side at 100% 50%, rgba(14, 16, 41, .13), transparent) right / 12px 100% no-repeat;
+  background-attachment: local, local, scroll, scroll;
+}
+.fw-pillars {
+  border-collapse: collapse;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+/* The panel must be allowed to be narrower than its widest child, or it is not a column,
+   it is whatever the table wants. */
+.fw-panel { min-width: 0; max-width: 100%; }
+/* The name sits BESIDE its vendor mark, not under it. `.fw-m-sysin` was only given a flex
+   row by the old metrics rule, so in the pillar table every system name wrapped to a second
+   line under its glyph and each row was twice the height it needed. */
+.fw-m-sysin { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.fw-pillars caption {
+  caption-side: bottom;
+  margin-top: 9px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+  text-align: left;
+  /* 62ch, not 92. It was the smallest type on the page carrying the longest line - measured
+     at 89 to 112 characters - and it is the text that defines all eleven metrics. */
+  max-width: 62ch;
+  font-size: 14px;
+}
+.fw-p-group {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  padding: 0 6px 4px;
+  text-align: center;
+  /* The rule under the group name is what makes the span visible; without it three pillars
+     read as one undifferentiated row of eleven. */
+  border-bottom: 1px solid var(--line);
+}
+.fw-p-group + .fw-p-group { border-left: 1px solid var(--line); }
+.fw-p-corner { border: 0; }
+.fw-p-metrics th {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--ink-soft);
+  padding: 5px 6px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line);
+}
+.fw-p-metrics th.fw-p-sys { text-align: left; }
+.fw-pillars th.fw-p-sys {
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  padding: 5px 12px 5px 0;
+  white-space: nowrap;
+}
+.fw-pillars td {
+  padding: 5px 6px;
+  text-align: right;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+/* Banded, not ruled. The rule was rgba(14, 16, 41, .055) - 1.12:1, which is to say invisible -
+   so eleven columns at a 90px pitch had no horizontal guide at all and the table read as a
+   grey field. Banding is also what this audience reads all day. */
+.fw-pillars tbody tr:nth-child(odd) { background: rgba(14, 16, 41, .032); }
+.fw-pillars td b { font-weight: 500; color: var(--ink-soft); }
+/* Weight AND tint. A 250-unit weight step is legible at 11.5px and nearly invisible at the
+   9px the narrowest columns fall back to; the tint survives every size. */
+.fw-pillars td.is-best { background: rgba(184, 18, 90, .085); }
+.fw-pillars td.is-best b { font-weight: 750; color: var(--ink); }
+.fw-pillars tbody tr:last-child td { border-bottom: 0; }
+/* No opacity. At .72 these measured 3.15:1 against the table ground - under AA - and they
+   are the reason the table is worth the width it costs: without them the Pathfinding block
+   reads as five separated systems when three of its intervals overlap. Full-strength
+   --ink-dim is 5.44:1, and the size step alone is enough to keep them subordinate. */
+.fw-pillars td .fw-pm { margin-left: 3px; }
+
+/* Eleven columns of numbers plus a system name is about 980px at the base size. The column
+   they land in is not one width - it is 34vw of the window at a world stop and rather less
+   elsewhere - so the type steps down to meet it. Keyed to the CONTAINER, not the viewport,
+   because it is the column's width that decides, and the same viewport gives the column two
+   different widths at two different stops. */
+@container pillars (max-width: 980px) {
+  .fw-pillars { font-size: 14px; }
+  .fw-pillars td, .fw-p-metrics th { padding: 4px 4px; }
+  .fw-pillars td .fw-pm { margin-left: 2px; }
+}
+@container pillars (max-width: 860px) {
+  .fw-pillars { font-size: 14px; }
+  .fw-pillars th.fw-p-sys { font-size: 14px; padding-right: 7px; }
+  .fw-pillars td, .fw-p-metrics th { padding: 3px 3px; }
+  .fw-pillars td .fw-pm { font-size: 14px; }
+  .fw-p-metrics th { font-size: 14px; }
+}
+@container pillars (max-width: 740px) {
+  .fw-pillars { font-size: 14px; }
+  .fw-pillars th.fw-p-sys { font-size: 14px; padding-right: 5px; }
+  .fw-pillars td, .fw-p-metrics th { padding: 3px 2px; }
+  /* Past here the half-widths are what has to go: they are the widest thing in every cell
+     and the least useful at a glance. The caption still says what they were, and the suite
+     stop shows them at full size. */
+  .fw-pillars td .fw-pm { display: none; }
+}
+@container pillars (max-width: 560px) {
+  /* Past here it cannot be made to fit and stay readable, so it scrolls instead - which is
+     honest, because the affordance on .fw-pillars-wrap shows there is more. */
+  .fw-pillars { font-size: 14px; width: auto; min-width: 540px; }
+  .fw-pillars td .fw-pm { display: inline; }
+}
+
+/* The reveal: the pillar names, then the metric names, then the systems one block at a
+   time. What it is measuring, before what scored what. */
+.fw-pillars.is-staged .fw-p-metrics th:not(.fw-p-sys),
+.fw-pillars.is-staged tbody tr { opacity: 0; transition: opacity .45s; }
+[data-step="1"] .fw-pillars.is-staged .fw-p-metrics th,
+[data-step="2"] .fw-pillars.is-staged .fw-p-metrics th,
+[data-step="3"] .fw-pillars.is-staged .fw-p-metrics th { opacity: 1; }
+[data-step="2"] .fw-pillars.is-staged tbody tr,
+[data-step="3"] .fw-pillars.is-staged tbody tr { opacity: 1; }
+
+/* ===========================================================================
+   The walks
+   ---------------------------------------------------------------------------
+   Live renderers, not pictures. The grid tracks collapse to 0fr rather than the
+   tiles being removed, which is what lets the browser interpolate between one
+   walk and six instead of cutting - the same technique the demo page's
+   presentation mode uses, and the reason a tile keeps walking while the layout
+   around it changes size.
+   ========================================================================= */
+
+.fw-maps {
+  display: grid;
+  gap: 9px;
+  margin-top: 10px;
+  /* --map-h is the ROW height, and it must be an explicit length rather than 1fr.
+     The renderer measures its host and lays itself out to fit; inside an auto-height
+     column a 1fr row has no height to resolve against, so the host grows, the renderer
+     re-measures, and the two feed each other. Measured before this was pinned: a panel
+     2,720,150px tall. An explicit height breaks the loop in one direction, which is all
+     it takes. */
+  /* TWO heights, not one. The reveal gives up space on the horizontal axis first and on
+     the vertical axis only at the last step, so a single walk on screen alone uses the
+     whole frame the six will eventually share rather than sitting in a strip a sixth of
+     its height with five empty cells beside it. --map-tall is one row filling the band;
+     --map-h is what a row becomes once there are two of them. */
+  --map-tall: clamp(230px, 44vh, 470px);
+  --map-h: calc((var(--map-tall) - 9px) / 2);
+  grid-template-columns: 1fr 0fr 0fr;
+  grid-template-rows: var(--map-tall) 0fr;
+  transition: grid-template-columns .6s cubic-bezier(.3,.7,.3,1),
+              grid-template-rows .6s cubic-bezier(.3,.7,.3,1);
+}
+[data-step="1"] .fw-maps { grid-template-columns: 1fr 1fr 0fr; }
+[data-step="2"] .fw-maps { grid-template-columns: 1fr 1fr 1fr; }
+[data-step="3"] .fw-maps {
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: var(--map-h) var(--map-h);
+}
+
+.fw-map {
+  margin: 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--glass);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .5s, border-color .14s, transform .14s;
+}
+/* The row's meaning is carried by the tile, not only by a 9.5px pill in its corner: solved
+   and unsolved were otherwise two visually identical containers. */
+.fw-map.is-ok  { border-top: 3px solid var(--teal); }
+.fw-map.is-bad { border-top: 3px solid var(--red); }
+.fw-map:hover { border-color: rgba(184, 18, 90, .45); transform: translateY(-1px); }
+.fw-map:focus-visible { outline: 2px solid var(--magenta); outline-offset: 2px; }
+/* Which tiles are up at each step. The top row builds left to right, then the whole failure
+   row arrives at once - the point of the last step is the comparison, not a fourth walk.
+   `.is-ok` is load-bearing in every one of these: each job has two cells with the same
+   data-at, so without it step 0 showed the job done well AND done badly, which is the
+   comparison the last step exists to make.
+   Steps 0 to 2 are also unclickable: a 0fr column is zero pixels wide, but a tile inside one
+   is still in the hit-testing tree and a click near the grid's left edge opened it. */
+[data-step="0"] .fw-map.is-ok[data-at="0"],
+[data-step="1"] .fw-map.is-ok[data-at="0"], [data-step="1"] .fw-map.is-ok[data-at="1"],
+[data-step="2"] .fw-map.is-ok[data-at="0"], [data-step="2"] .fw-map.is-ok[data-at="1"],
+[data-step="2"] .fw-map.is-ok[data-at="2"],
+[data-step="3"] .fw-map { opacity: 1; }
+.fw-map { pointer-events: none; visibility: hidden; }
+[data-step="0"] .fw-map.is-ok[data-at="0"],
+[data-step="1"] .fw-map.is-ok[data-at="0"], [data-step="1"] .fw-map.is-ok[data-at="1"],
+[data-step="2"] .fw-map.is-ok[data-at="0"], [data-step="2"] .fw-map.is-ok[data-at="1"],
+[data-step="2"] .fw-map.is-ok[data-at="2"],
+[data-step="3"] .fw-map { pointer-events: auto; visibility: visible; }
+
+.fw-map-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  flex: 0 0 auto;
+  /* Fixed, so the map below is the residual and all six maps share edges. Free, the
+     "All-day assistance" head wrapped to two lines below 1366 and those two tiles started
+     15px lower than their neighbours - in a grid whose whole purpose is pairwise
+     comparison. */
+  min-height: 30px;
+}
+.fw-map-cond { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fw-map-cond { font-weight: 650; color: var(--ink); }
+.fw-map-verdict {
+  margin-left: auto;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 100px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.fw-map.is-ok  .fw-map-verdict { color: var(--teald); }
+.fw-map.is-bad .fw-map-verdict { color: var(--red); }
+
+/* The renderer fills whatever is left. It measures its host, so the host must have a real
+   height: min-height 0 in a grid item plus flex:1 is what gives it one. */
+.fw-map-box { flex: 1 1 auto; min-height: 0; display: flex; position: relative; }
+.fw-map-box .wm-root { flex: 1 1 auto; min-width: 0; min-height: 0; }
+.fw-map-wait {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.fw-map-foot {
+  flex: 0 0 auto;
+  padding: 5px 9px 6px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  line-height: 1.38;
+  color: var(--ink-dim);
+  min-height: calc(2 * 1.38em + 11px);      /* the pair to .fw-map-head's floor */
+  /* Hard-capped at two lines. The row height is fixed, so every pixel the note takes comes
+     straight out of the map: unclamped, a three-line note left a 144px tile with 37px of
+     actual walk in it, which is a caption with a sliver attached rather than a map. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The full walk, over the page. Same renderer without `compact`, which is what brings back
+   the step scrubber: stepping the route one block at a time is the renderer's own transport,
+   not a second implementation that could disagree with the tile. */
+.fw-walk {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(12px, 3vh, 40px);
+  background: rgba(18, 11, 25, .55);
+  backdrop-filter: blur(3px);
+}
+.fw-walk-card {
+  display: flex;
+  flex-direction: column;
+  width: min(1180px, 100%);
+  height: min(820px, 100%);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #12171f;      /* the map's own ground, so the card is not a light frame on dark */
+  box-shadow: 0 24px 70px rgba(10, 4, 16, .5);
+}
+.fw-walk-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid #212a36;
+  color: #e6edf5;
+  flex: 0 0 auto;
+}
+.fw-walk-title { font-size: 14px; font-weight: 650; }
+.fw-walk-sub { font-size: 14px; color: #8b97a8; min-width: 0; flex: 1 1 auto; }
+.fw-walk-x {
+  flex: 0 0 auto;
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  border: 1px solid #212a36;
+  background: transparent;
+  color: #e6edf5;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.fw-walk-x:hover { border-color: #4aa8ff; }
+.fw-walk-x:focus-visible { outline: 2px solid #4aa8ff; outline-offset: 1px; }
+.fw-walk-body { flex: 1 1 auto; min-height: 0; display: flex; padding: 10px; }
+.fw-walk-body .wm-root { flex: 1 1 auto; min-width: 0; min-height: 0; }
+/* This page never fetches a recording - the walks are silent by design and setVoice is
+   never called - so the renderer's Voice toggle is a control with nothing behind it. A
+   button that does nothing is worse than no button. */
+.fw-walk-body [data-el="sVoice"] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fw-video { transition: none; }
+  .fw-hero { filter: none !important; }
+  /* Everything else with a transition or a transform. The rail mark scales on every stop
+     change and the buttons lift on every hover, and neither was covered here before. */
+  .fw-dot, .fw-dot-mark, .fw-dot-label, .fw-hint,
+  .fw-btn, .fw-linkbtn, .linkbtn, .fw-auto, .fw-case { transition: none; }
+  .fw-dot.is-on .fw-dot-mark { transform: none; }
+  .fw-btn:hover { transform: none; }
+  /* The blocks added with the paper layout. A bar that grows and a grid that expands are
+     both motion, and a reader who asked for none should get the finished state at once. */
+  /* `:not(.fw-p-sys)` has to be repeated or the staged header rule out-specifies this one
+     and keeps its 0.45s fade. */
+  .fw-bar-tip, .fw-maps, .fw-map, .fw-pillars.is-staged .fw-p-metrics th,
+  .fw-pillars.is-staged .fw-p-metrics th:not(.fw-p-sys),
+  .fw-pillars.is-staged tbody tr, .fw-copy, .fw-globes, .fw-rail[hidden] { display: none !important; }
+.fw-rail { transition: none; }
+  /* The bars are no longer a transition - they are a width computed from the panel's own
+     visibility - so there is nothing here to switch off. Pinning them to full width instead
+     means a reader who asked for no motion still gets the finished chart. */
+  .fw-bar-fill { width: var(--w); }
+  .fw-bar-row.is-zero .fw-bar-fill { width: 3px; }
+  .fw-map:hover, .fw-run[data-kind="map"]:hover { transform: none; }
+  .fw-turn { animation: none; }
+  .fw-walk { backdrop-filter: none; }
+}
